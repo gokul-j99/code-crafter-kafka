@@ -7,36 +7,35 @@ import java.io.IOException;
 public class Constants {
 
     public enum ApiKey {
-        FETCH(1),
-        API_VERSIONS(18),
-        DESCRIBE_TOPIC_PARTITIONS(75);
+        FETCH((short) 1),
+        API_VERSIONS((short) 18),
+        DESCRIBE_TOPIC_PARTITIONS((short) 75);
 
-        private final int value;
+        private final short value;
 
-        ApiKey(int value) {
+        ApiKey(short value) {
             this.value = value;
         }
 
-        public int getValue() {
+        public short getValue() {
             return value;
         }
 
         public static ApiKey decode(DataInputStream inputStream) throws IOException {
-            int intValue = inputStream.readShort(); // Decode as a 16-bit integer
-            System.out.println(intValue);
-
+            short shortValue = inputStream.readShort(); // Decode as 16-bit integer
             for (ApiKey apiKey : ApiKey.values()) {
-                if (apiKey.getValue() == intValue) {
+                if (apiKey.getValue() == shortValue) {
                     return apiKey;
                 }
             }
-            throw new IllegalArgumentException("Unknown ApiKey: " + intValue);
+            throw new IllegalArgumentException("Unknown ApiKey: " + shortValue);
         }
 
         public void encode(DataOutputStream outputStream) throws IOException {
-            outputStream.writeShort(value); // Encode as a 16-bit integer
+            outputStream.writeShort(value); // Encode as 16-bit integer
         }
     }
+
 
     public enum ErrorCode {
         NONE(0),
