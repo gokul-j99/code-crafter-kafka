@@ -97,16 +97,24 @@ public class Main {
         int minVersion = 0;
         int maxVersion = 4;
         int errorCode = 0;
+        int apiKeyCount = 1;
 
-        byte[] responseBody = new byte[2 + 1 + 6]; // error_code + api_key_count + api_key entry
+        // Calculate response body size
+        // error_code (2 bytes) + api_key_count (4 bytes) + api_key_entry (6 bytes per entry)
+        int bodySize = 2 + 4 + (6 * apiKeyCount);
+
+        byte[] responseBody = new byte[bodySize];
         int offset = 0;
 
         // error_code (2 bytes)
         responseBody[offset++] = (byte) ((errorCode >> 8) & 0xFF);
         responseBody[offset++] = (byte) (errorCode & 0xFF);
 
-        // api_key_count (1 byte, 1 key)
-        responseBody[offset++] = 0x01;
+        // api_key_count (4 bytes)
+        responseBody[offset++] = (byte) ((apiKeyCount >> 24) & 0xFF);
+        responseBody[offset++] = (byte) ((apiKeyCount >> 16) & 0xFF);
+        responseBody[offset++] = (byte) ((apiKeyCount >> 8) & 0xFF);
+        responseBody[offset++] = (byte) (apiKeyCount & 0xFF);
 
         // API key entry
         // api_key (2 bytes)
@@ -123,4 +131,5 @@ public class Main {
 
         return responseBody;
     }
+
 }
