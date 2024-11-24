@@ -38,11 +38,6 @@ public class Main {
             while (true) {
                 var request = request(clientSocket.getInputStream());
                 if (request == null) {
-
-//                    var buffer = ByteBuffer.allocate(2);
-//                    buffer.putShort(0, (short)0);
-//                    buffer.putShort(1, (short)42);
-//                    respond(buffer, clientSocket.getOutputStream());
                     break;
                 }
                 var response = process(request);
@@ -55,11 +50,12 @@ public class Main {
 
     private static ByteBuffer request(InputStream inputStream) throws IOException {
         var length = ByteBuffer.wrap(inputStream.readNBytes(4)).getInt();
+
         var payload = inputStream.readNBytes(length);
         return ByteBuffer.allocate(length).put(payload).rewind();
     }
 
-    private static ByteBuffer process(ByteBuffer request) throws IOException {
+    private static ByteBuffer process(ByteBuffer request) {
         var apiKey = request.getShort();     // request_api_key
         var apiVersion = request.getShort(); // request_api_version
         var correlationId = request.getInt();
@@ -82,53 +78,34 @@ public class Main {
         return constructResponse(correlationId, errorCode);
     }
 
-    private static ByteBuffer constructResponse(int correlationId, int errorCode) throws IOException {
-        // Use ByteArrayOutputStream to build the response
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+    private static ByteBuffer constructResponse(int correlationId, int errorCode) {
+        // Prepare API key entries for the response
+        var apiversionsEntry = createApiKeyEntry((short) 18, (short) 0, (short) 4); // APIVersions
+        var describeTopicPartitionsEntry = createApiKeyEntry((short) 75, (short) 0, (short) 0); // DescribeTopicPartitions
 
-        // Response Header
-        baos.write(ByteBuffer.allocate(4).putInt(correlationId).array()); // Correlation ID
-        baos.write(new byte[]{0, 0}); // Error Code (No Error)
+        // Calculate total response size
+        int responseSize = 4 + // Correlation ID
+                2 + // Error Code
+                1 + // Number of API key entries
+                apiversionsEntry.capacity() +
+                describeTopicPartitionsEntry.capacity();
 
-        // Number of API key entries (2: APIVersions + DescribeTopicPartitions)
-        baos.write(2);
+        var buffer = ByteBuffer.allocate(4 + responseSize); // 4 bytes for the size
+        buffer.putInt(responseSize); // Message size
+        buffer.putInt(correlationId); // Correlation ID
+        buffer.putShort((short) errorCode); // Error code
+        buffer.put((byte) 3); // Number of API key entries
+        buffer.put(apiversionsEntry); // APIVersions entry
+        buffer.put(describeTopicPartitionsEntry); // DescribeTopicPartitions entry
 
-        // APIVersions API Key Entry
-        baos.write(new byte[]{0, 18}); // API key: APIVersions
-        baos.write(new byte[]{0, 0}); // Min version: 0
-        baos.write(new byte[]{0, 4}); // Max version: 4
-        baos.write(0); // TAG_BUFFER: empty
-
-        // DescribeTopicPartitions API Key Entry
-        baos.write(new byte[]{0, 75}); // API key: DescribeTopicPartitions
-        baos.write(new byte[]{0, 0}); // Min version: 0
-        baos.write(new byte[]{0, 0}); // Max version: 0
-        baos.write(0); // TAG_BUFFER: empty
-
-        // Throttle Time
-        baos.write(new byte[]{0, 0, 0, 0}); // Throttle time: 0 (no throttling)
-
-        // Final TAG_BUFFER
-        baos.write(0); // TAG_BUFFER: empty
-
-        // Create a ByteBuffer for the complete response with size prefix
-        byte[] responseBytes = baos.toByteArray();
-        ByteBuffer responseBuffer = ByteBuffer.allocate(4 + responseBytes.length);
-        responseBuffer.putInt(responseBytes.length); // Message size
-        responseBuffer.put(responseBytes); // Response content
-        responseBuffer.rewind(); // Reset buffer position for writing
-
-        return responseBuffer;
+        return buffer.rewind();
     }
-
 
     private static ByteBuffer createApiKeyEntry(short apiKey, short minVersion, short maxVersion) {
         return ByteBuffer.allocate(6)
                 .putShort(apiKey) // API key
                 .putShort(minVersion) // Min version
-                .putShort(maxVersion)
-                .putShort((short)0); // Max version.
-
+                .putShort(maxVersion); // Max version
     }
 
     private static void respond(ByteBuffer response, OutputStream outputStream) throws IOException {
