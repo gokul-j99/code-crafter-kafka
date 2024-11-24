@@ -44,6 +44,7 @@ public class MessageHandler {
 
         switch (responseHeader.getApiKey()) {
             case FETCH:
+                System.out.println("Fetch  res");
                 response = FetchResponse.makeBody(responseHeader,request);
                 break;
             case API_VERSIONS:
