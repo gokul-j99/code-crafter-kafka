@@ -85,13 +85,13 @@ public class Main {
         } else {
             // Supported API version
             bos.write(new byte[]{0, 0});        // Error code 0 (No Error)
-            bos.write(new byte[]{0, 0, 0, 1}); // Number of API keys (1 key)
+            bos.write(ByteBuffer.allocate(4).putInt(1).array()); // Number of API keys (1 key)
 
             // Write API key entry
             bos.write(new byte[]{0, 18});       // API key (18 for ApiVersions)
             bos.write(new byte[]{0, 0});       // Min version
             bos.write(new byte[]{0, 4});       // Max version
-            bos.write(new byte[]{0, 0, 0, 0}); // Throttle time
+            bos.write(ByteBuffer.allocate(4).putInt(0).array()); // Throttle time (0)
 
             // Correctly encode TAG_BUFFER
             bos.write(0x00); // TAG_BUFFER: empty compact array
