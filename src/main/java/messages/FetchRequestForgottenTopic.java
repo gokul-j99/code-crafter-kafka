@@ -33,4 +33,12 @@ public class FetchRequestForgottenTopic {
     private static void decodeTaggedFields(DataInputStream inputStream) throws IOException {
         inputStream.skipBytes(inputStream.available());
     }
+
+    @Override
+    public String toString() {
+        return "FetchRequestForgottenTopic{" +
+                "topicId=" + topicId +
+                ", partitions=" + partitions +
+                '}';
+    }
 }

@@ -40,4 +40,12 @@ public class FetchRequestTopic {
     private static void decodeTaggedFields(DataInputStream inputStream) throws IOException {
         inputStream.skipBytes(inputStream.available());
     }
+
+    @Override
+    public String toString() {
+        return "FetchRequestTopic{" +
+                "topicId=" + topicId +
+                ", partitions=" + partitions +
+                '}';
+    }
 }

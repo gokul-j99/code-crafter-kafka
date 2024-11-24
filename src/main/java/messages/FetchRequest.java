@@ -1,5 +1,7 @@
 package messages;
 
+import Kafka.PrimitiveTypes;
+
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.util.List;
@@ -36,16 +38,28 @@ public class FetchRequest extends AbstractRequest {
 
     public static FetchRequest decodeBody(DataInputStream inputStream,  RequestHeader requestHeader ) throws IOException {
         int maxWaitMs = inputStream.readInt();
+        System.out.println("maxWaitMs :");
+        System.out.println(maxWaitMs);
         int minBytes = inputStream.readInt();
+        System.out.println("minBytes :");
+        System.out.println(minBytes);
         int maxBytes = inputStream.readInt();
+        System.out.println("maxBytes :");
+        System.out.println(maxBytes);
         int isolationLevel = inputStream.readByte();
+        System.out.println("isolationLevel :");
+        System.out.println(isolationLevel);
         int sessionId = inputStream.readInt();
+        System.out.println("sessionId :");
+        System.out.println(sessionId);
         int sessionEpoch = inputStream.readInt();
+        System.out.println("sessionEpoch :");
+        System.out.println(sessionEpoch);
         List<FetchRequestTopic> topics = decodeCompactArray(inputStream, FetchRequestTopic::decode);
         List<FetchRequestForgottenTopic> forgottenTopicsData =
                 decodeCompactArray(inputStream, FetchRequestForgottenTopic::decode);
         String rackId = decodeCompactString(inputStream);
-        decodeTaggedFields(inputStream);
+        PrimitiveTypes.decodeTaggedFields(inputStream);
 
         return new FetchRequest(maxWaitMs, minBytes, maxBytes, isolationLevel, sessionId, sessionEpoch, topics,
                 forgottenTopicsData, rackId);
