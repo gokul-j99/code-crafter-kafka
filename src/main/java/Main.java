@@ -1,4 +1,5 @@
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -20,11 +21,41 @@ public class Main {
        serverSocket.setReuseAddress(true);
        // Wait for connection from client.
        clientSocket = serverSocket.accept();
+       System.out.println("Client connected!");
+
+         InputStream inputStream = clientSocket.getInputStream();
+         byte[] buffer = new byte[256]; // Adjust size as necessary for your use case
+         int bytesRead = inputStream.read(buffer);
+
+         if (bytesRead > 0) {
+             // Parse the correlation_id from the request
+             int correlationId = ((buffer[8] & 0xFF) << 24) | ((buffer[9] & 0xFF) << 16)
+                     | ((buffer[10] & 0xFF) << 8) | (buffer[11] & 0xFF);
+
+             System.err.println("Parsed correlation_id: " + correlationId);
+
+
+             byte[] response = new byte[8];
+
+             // message_size (4 bytes)
+             response[0] = 0x00;
+             response[1] = 0x00;
+             response[2] = 0x00;
+             response[3] = 0x00;
+
+             // correlation_id (4 bytes)
+             response[4] = (byte) ((correlationId >> 24) & 0xFF);
+             response[5] = (byte) ((correlationId >> 16) & 0xFF);
+             response[6] = (byte) ((correlationId >> 8) & 0xFF);
+             response[7] = (byte) (correlationId & 0xFF);
+
+             OutputStream out = clientSocket.getOutputStream();
+             out.write(response);
+             out.flush();
+         }
 
        //  writing output stream
-         OutputStream out = clientSocket.getOutputStream();
-         out.write(new byte[] {0, 1, 2, 3});
-         out.write(new byte[] {0, 0, 0, 7});
+
      } catch (IOException e) {
        System.out.println("IOException: " + e.getMessage());
      } finally {
