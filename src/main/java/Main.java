@@ -40,10 +40,10 @@ public class Main {
                 }
 
                 // Parse the request
-                byte[] correlationId = parseRequest(in);
+                RequestData requestData = parseRequest(in);
 
                 // Prepare the response
-                ByteArrayOutputStream responseStream = prepareResponse(in, correlationId);
+                ByteArrayOutputStream responseStream = prepareResponse(requestData);
 
                 // Send the response
                 sendResponse(out, responseStream);
@@ -54,7 +54,7 @@ public class Main {
         }
     }
 
-    private static byte[] parseRequest(InputStream in) throws IOException {
+    private static RequestData parseRequest(InputStream in) throws IOException {
         // Read size (4 bytes, not used)
         in.readNBytes(4);
 
@@ -70,20 +70,16 @@ public class Main {
         byte[] correlationId = in.readNBytes(4);
         System.err.println("Parsed Correlation ID: " + Arrays.toString(correlationId));
 
-        return correlationId;
+        return new RequestData(apiVersion, correlationId);
     }
 
-    private static ByteArrayOutputStream prepareResponse(InputStream in, byte[] correlationId) throws IOException {
+    private static ByteArrayOutputStream prepareResponse(RequestData requestData) throws IOException {
         ByteArrayOutputStream bos = new ByteArrayOutputStream();
 
         // Add correlation ID
-        bos.write(correlationId);
+        bos.write(requestData.correlationId);
 
-        // Read API version again for response logic
-        byte[] apiVersionBytes = in.readNBytes(2);
-        short apiVersion = ByteBuffer.wrap(apiVersionBytes).getShort();
-
-        if (apiVersion < 0 || apiVersion > 4) {
+        if (requestData.apiVersion < 0 || requestData.apiVersion > 4) {
             // Unsupported API version
             bos.write(new byte[]{0, 35}); // Error code 35 (UNSUPPORTED_VERSION)
         } else {
@@ -116,5 +112,16 @@ public class Main {
 
         System.err.println("Response sent. Size: " + bos.size());
         System.err.println("Response Content: " + Arrays.toString(response));
+    }
+
+    // Helper class to hold parsed request data
+    private static class RequestData {
+        short apiVersion;
+        byte[] correlationId;
+
+        public RequestData(short apiVersion, byte[] correlationId) {
+            this.apiVersion = apiVersion;
+            this.correlationId = correlationId;
+        }
     }
 }
