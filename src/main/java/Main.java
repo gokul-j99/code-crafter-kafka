@@ -1,10 +1,8 @@
-import java.io.ByteArrayOutputStream;
-import java.io.DataInputStream;
-import java.io.IOException;
-import java.io.OutputStream;
+import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 
 public class Main {
     public static void main(String[] args) {
@@ -26,7 +24,9 @@ public class Main {
 
             // Handle requests in a loop
             while (true) {
+                System.out.println("Inside while");
                 handleRequest(in, out);
+                System.out.println("exit while");
             }
         } catch (IOException e) {
             System.out.println("IOException: " + e.getMessage());
@@ -65,34 +65,41 @@ public class Main {
         byteArrayStream.write(correlationIdBytes);
 
         // Response Body
-        if (requestApiVersion < 0 || requestApiVersion > 4) {
-            // Unsupported version error code (35)
-            byteArrayStream.write(ByteBuffer.allocate(2).putShort((short) 35).array());
-        } else {
-            // Success response
-            byteArrayStream.write(new byte[]{0, 0}); // Error code 0 (No Error)
-            byteArrayStream.write(new byte[]{0, 2}); // Number of API keys (2 bytes)
+        byteArrayStream.write(getErrorCode(requestApiVersion));
+        //   .num_api_keys
+        byteArrayStream.write(new byte[] {0, 2});
 
-            // API Key Entry
-            byteArrayStream.write(requestApiKeyBytes); // API key
-            byteArrayStream.write(new byte[]{0, 0}); // Min version (0)
-            byteArrayStream.write(new byte[]{0, 4}); // Max version (4)
-
-            // TAG_BUFFER and Throttle Time
-            byteArrayStream.write(new byte[]{0}); // Empty TAG_BUFFER
-            byteArrayStream.write(new byte[]{0, 0, 0, 0}); // Throttle time
-            byteArrayStream.write(new byte[]{0}); // Empty TAG_BUFFER
-        }
+        byteArrayStream.write(requestApiKeyBytes);
 
         // Write the response
-        byte[] responseBytes = byteArrayStream.toByteArray();
+        byteArrayStream.write(new byte[] {0, 0}); // min v0 INT16
+        // .max_version
+        byteArrayStream.write(new byte[] {0, 4}); // max v4 INT16
+        // .TAG_BUFFER
+        byteArrayStream.write(new byte[] {0});
+        // .throttle_time_ms
+
+        byteArrayStream.write(new byte[] {0, 0, 0, 0});
+        // .TAG_BUFFER
+
+        byteArrayStream.write(new byte[] {0});
+
+        byte[] bytes = byteArrayStream.toByteArray();
 
         // Write response size (4 bytes)
-        outputStream.write(ByteBuffer.allocate(4).putInt(responseBytes.length).array());
+        outputStream.write(ByteBuffer.allocate(4).putInt(bytes.length).array());
 
         // Write response body
-        outputStream.write(responseBytes);
+        outputStream.write(bytes);
 
-        System.out.println("Response sent: " + responseBytes.length + " bytes");
+        System.out.println("Response sent: " + bytes.length + " bytes");
+    }
+
+    private static byte[] getErrorCode(short requestApiVersion) {
+        if (requestApiVersion < 0 || requestApiVersion > 4) {
+            return ByteBuffer.allocate(2).putShort((short)35).array();
+        } else {
+            return new byte[] {0};
+        }
     }
 }
