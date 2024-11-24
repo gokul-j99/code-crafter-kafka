@@ -25,8 +25,8 @@ public class Main {
                 System.out.println("Client connected!");
 
                 // Handle the client in a separate thread
-                Socket clienSocket = serverSocket.accept();
-                executorService.submit(() -> handleClient(clienSocket));
+
+                executorService.submit(() -> handleClient(clientSocket));
             }
         } catch (IOException e) {
             System.out.println("IOException: " + e.getMessage());
