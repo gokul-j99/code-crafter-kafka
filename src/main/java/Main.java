@@ -92,7 +92,9 @@ public class Main {
             bos.write(new byte[]{0, 0});       // Min version
             bos.write(new byte[]{0, 4});       // Max version
             bos.write(new byte[]{0, 0, 0, 0}); // Throttle time
-            bos.write(0);                       // Tagged fields (empty)
+
+            // Correctly encode TAG_BUFFER
+            bos.write(0x00); // TAG_BUFFER: empty compact array
         }
 
         return bos;
