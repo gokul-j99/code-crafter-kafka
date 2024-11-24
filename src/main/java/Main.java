@@ -5,95 +5,116 @@ import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+
 public class Main {
+    private static final int PORT = 9092;
+
     public static void main(String[] args) {
         System.err.println("Starting server...");
-        ServerSocket serverSocket;
-        Socket clientSocket = null;
-        int port = 9092;
-        try {
-            serverSocket = new ServerSocket(port);
-            // Since the tester restarts your program quite often, setting
-            // SO_REUSEADDR ensures that we don't run into 'Address already in use'
-            // errors
-            serverSocket.setReuseAddress(true);
-            // Wait for connection from client.
-            clientSocket = serverSocket.accept();
-            // Get input stream
-            InputStream in = clientSocket.getInputStream();
-            // Get output stream
-            OutputStream out = clientSocket.getOutputStream();
-            // request
-            // size 4 byte
-            in.readNBytes(4);
-            // RQ header
-            // api key 16bit
-            var apiKey = in.readNBytes(2);
-            // api version 16bit
-            var apiVersionBytes = in.readNBytes(2);
-            var apiVersion = ByteBuffer.wrap(apiVersionBytes).getShort();
-            // correlation id 32bit
-            byte[] cId = in.readNBytes(4);
-            // client_id nullable string
-            // tagged fields nullable
-            // response
-            var bos = new ByteArrayOutputStream();
-            // size 32bit
+        try (ServerSocket serverSocket = new ServerSocket(PORT)) {
+            serverSocket.setReuseAddress(true); // Prevent "Address already in use" errors
 
-            // written directly to output stream below
-            //            bos.write(new byte[]{0, 0, 0, 0});
-            // correlation id 32bit
-
-            bos.write(cId);
-            // tagged fields nullable
-            //            bos.write(0); // tagged fields
-            // request specific data
-            // error code 16bit
-            // APIVersions (v4)
-            if (apiVersion < 0 || apiVersion > 4) {
-
-                // error code 16bit
-                bos.write(new byte[] {0, 35});
-            } else {
-                
-                // error code 16bit
-                //    api_key => INT16
-                //    min_version => INT16
-                //    max_version => INT16
-                //  throttle_time_ms => INT32
-                bos.write(new byte[] {0, 0});       // error code
-                bos.write(2);                       // array size + 1
-                bos.write(new byte[] {0, 18});      // api_key
-                bos.write(new byte[] {0, 3});       // min version
-                bos.write(new byte[] {0, 4});       // max version
-                bos.write(0);                       // tagged fields
-                bos.write(new byte[] {0, 0, 0, 0}); // throttle time
-                // All requests and responses will end with a tagged field buffer.  If
-                // there are no tagged fields, this will only be a single zero byte.
-                bos.write(0); // tagged fields
-            }
-            // error message nullable string
-            // tagged fields nullable
-            int size = bos.size();
-            byte[] sizeBytes = ByteBuffer.allocate(4).putInt(size).array();
-            var response = bos.toByteArray();
-            System.out.println(Arrays.toString(sizeBytes));
-            System.out.println(Arrays.toString(response));
-            out.write(sizeBytes);
-            out.write(response);
-            out.flush();
-        } catch (IOException e) {
-            System.out.println("IOException: " + e.getMessage());
-        } finally {
-            try {
-                if (clientSocket != null) {
-                    clientSocket.close();
+            while (true) {
+                try (Socket clientSocket = serverSocket.accept()) {
+                    System.err.println("Client connected!");
+                    handleClient(clientSocket);
+                } catch (IOException e) {
+                    System.err.println("Error handling client: " + e.getMessage());
                 }
-            } catch (IOException e) {
-                System.out.println("IOException: " + e.getMessage());
+            }
+        } catch (IOException e) {
+            System.err.println("Error starting server: " + e.getMessage());
+        }
+    }
+
+    private static void handleClient(Socket clientSocket) throws IOException {
+        InputStream in = clientSocket.getInputStream();
+        OutputStream out = clientSocket.getOutputStream();
+
+        while (true) { // Loop to handle multiple requests
+            try {
+                if (in.available() < 4) {
+                    Thread.sleep(10); // Avoid busy waiting if no data is available
+                    continue;
+                }
+
+                // Parse the request
+                byte[] correlationId = parseRequest(in);
+
+                // Prepare the response
+                ByteArrayOutputStream responseStream = prepareResponse(in, correlationId);
+
+                // Send the response
+                sendResponse(out, responseStream);
+            } catch (IOException | InterruptedException e) {
+                System.err.println("Client disconnected or error occurred: " + e.getMessage());
+                break;
             }
         }
+    }
+
+    private static byte[] parseRequest(InputStream in) throws IOException {
+        // Read size (4 bytes, not used)
+        in.readNBytes(4);
+
+        // Read API key (2 bytes, not used)
+        in.readNBytes(2);
+
+        // Read API version (2 bytes, used later)
+        byte[] apiVersionBytes = in.readNBytes(2);
+        short apiVersion = ByteBuffer.wrap(apiVersionBytes).getShort();
+        System.err.println("Parsed API Version: " + apiVersion);
+
+        // Read correlation ID (4 bytes)
+        byte[] correlationId = in.readNBytes(4);
+        System.err.println("Parsed Correlation ID: " + Arrays.toString(correlationId));
+
+        return correlationId;
+    }
+
+    private static ByteArrayOutputStream prepareResponse(InputStream in, byte[] correlationId) throws IOException {
+        ByteArrayOutputStream bos = new ByteArrayOutputStream();
+
+        // Add correlation ID
+        bos.write(correlationId);
+
+        // Read API version again for response logic
+        byte[] apiVersionBytes = in.readNBytes(2);
+        short apiVersion = ByteBuffer.wrap(apiVersionBytes).getShort();
+
+        if (apiVersion < 0 || apiVersion > 4) {
+            // Unsupported API version
+            bos.write(new byte[]{0, 35}); // Error code 35 (UNSUPPORTED_VERSION)
+        } else {
+            // Supported API version
+            bos.write(new byte[]{0, 0});        // Error code 0 (No Error)
+            bos.write(new byte[]{0, 0, 0, 1}); // Number of API keys (1 key)
+
+            // Write API key entry
+            bos.write(new byte[]{0, 18});       // API key (18 for ApiVersions)
+            bos.write(new byte[]{0, 0});       // Min version
+            bos.write(new byte[]{0, 4});       // Max version
+            bos.write(new byte[]{0, 0, 0, 0}); // Throttle time
+            bos.write(0);                       // Tagged fields (empty)
+        }
+
+        return bos;
+    }
+
+    private static void sendResponse(OutputStream out, ByteArrayOutputStream bos) throws IOException {
+        // Calculate and write the size
+        byte[] sizeBytes = ByteBuffer.allocate(4).putInt(bos.size()).array();
+        out.write(sizeBytes);
+
+        // Write the response body
+        byte[] response = bos.toByteArray();
+        out.write(response);
+
+        // Flush the output stream
+        out.flush();
+
+        System.err.println("Response sent. Size: " + bos.size());
+        System.err.println("Response Content: " + Arrays.toString(response));
     }
 }
