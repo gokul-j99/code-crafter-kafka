@@ -39,10 +39,10 @@ public class Main {
                 var request = request(clientSocket.getInputStream());
                 if (request == null) {
 
-                    var buffer = ByteBuffer.allocate(2);
-                    buffer.putShort(0, (short)0);
-                    buffer.putShort(1, (short)42);
-                    respond(buffer, clientSocket.getOutputStream());
+//                    var buffer = ByteBuffer.allocate(2);
+//                    buffer.putShort(0, (short)0);
+//                    buffer.putShort(1, (short)42);
+//                    respond(buffer, clientSocket.getOutputStream());
                     break;
                 }
                 var response = process(request);
