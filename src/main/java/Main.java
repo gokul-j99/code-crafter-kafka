@@ -1,4 +1,7 @@
-import java.io.*;
+import java.io.ByteArrayOutputStream;
+import java.io.DataInputStream;
+import java.io.IOException;
+import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.ByteBuffer;
@@ -7,36 +10,40 @@ import java.util.Arrays;
 public class Main {
     public static void main(String[] args) {
         System.out.println("Kafka server started");
-        ServerSocket serverSocket;
-        Socket clientSocket = null;
         int port = 9092;
 
-        try {
-            serverSocket = new ServerSocket(port);
-            serverSocket.setReuseAddress(true);
+        try (ServerSocket serverSocket = new ServerSocket(port)) {
+            serverSocket.setReuseAddress(true); // Allow port reuse after restart
 
-            // Wait for connection from the client
-            clientSocket = serverSocket.accept();
-
-            // Set up input and output streams
-            DataInputStream in = new DataInputStream(clientSocket.getInputStream());
-            OutputStream out = clientSocket.getOutputStream();
-
-            // Handle requests in a loop
             while (true) {
-                System.out.println("Inside while");
-                handleRequest(in, out);
-                System.out.println("exit while");
+                // Accept client connection
+                Socket clientSocket = serverSocket.accept();
+                System.out.println("Client connected!");
+
+                // Handle the client in a separate thread
+                new Thread(() -> handleClient(clientSocket)).start();
             }
         } catch (IOException e) {
             System.out.println("IOException: " + e.getMessage());
-        }finally {
+        }
+    }
+
+    private static void handleClient(Socket clientSocket) {
+        try (
+                DataInputStream in = new DataInputStream(clientSocket.getInputStream());
+                OutputStream out = clientSocket.getOutputStream()
+        ) {
+            // Handle multiple requests from this client
+            while (true) {
+                handleRequest(in, out);
+            }
+        } catch (IOException e) {
+            System.out.println("Client disconnected or error occurred: " + e.getMessage());
+        } finally {
             try {
-                if (clientSocket != null) {
-                    clientSocket.close();
-                }
+                clientSocket.close();
             } catch (IOException e) {
-                System.out.println("IOException: " + e.getMessage());
+                System.out.println("Error closing client socket: " + e.getMessage());
             }
         }
     }
@@ -66,23 +73,14 @@ public class Main {
 
         // Response Body
         byteArrayStream.write(getErrorCode(requestApiVersion));
-        //   .num_api_keys
-        byteArrayStream.write(new byte[] {0, 2});
+        byteArrayStream.write(new byte[]{0, 1}); // Number of API keys (1 entry)
 
-        byteArrayStream.write(requestApiKeyBytes);
-
-        // Write the response
-        byteArrayStream.write(new byte[] {0, 0}); // min v0 INT16
-        // .max_version
-        byteArrayStream.write(new byte[] {0, 4}); // max v4 INT16
-        // .TAG_BUFFER
-        byteArrayStream.write(new byte[] {0});
-        // .throttle_time_ms
-
-        byteArrayStream.write(new byte[] {0, 0, 0, 0});
-        // .TAG_BUFFER
-
-        byteArrayStream.write(new byte[] {0});
+        // API Key Entry
+        byteArrayStream.write(requestApiKeyBytes); // API key
+        byteArrayStream.write(new byte[]{0, 0}); // Min version
+        byteArrayStream.write(new byte[]{0, 4}); // Max version
+        byteArrayStream.write(new byte[]{0, 0, 0, 0}); // Throttle time
+        byteArrayStream.write(new byte[]{0}); // TAG_BUFFER
 
         byte[] bytes = byteArrayStream.toByteArray();
 
@@ -93,13 +91,14 @@ public class Main {
         outputStream.write(bytes);
 
         System.out.println("Response sent: " + bytes.length + " bytes");
+        System.out.println("Response Content: " + Arrays.toString(bytes));
     }
 
     private static byte[] getErrorCode(short requestApiVersion) {
         if (requestApiVersion < 0 || requestApiVersion > 4) {
-            return ByteBuffer.allocate(2).putShort((short)35).array();
+            return ByteBuffer.allocate(2).putShort((short) 35).array();
         } else {
-            return new byte[] {0};
+            return new byte[]{0, 0};
         }
     }
 }
