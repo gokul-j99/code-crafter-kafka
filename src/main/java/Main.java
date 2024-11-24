@@ -1,6 +1,6 @@
 import java.io.ByteArrayOutputStream;
+import java.io.DataInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -11,14 +11,26 @@ public class Main {
     private static final int PORT = 9092;
 
     public static void main(String[] args) {
-        System.err.println("Starting server...");
+        System.out.println("Kafka server started");
+
         try (ServerSocket serverSocket = new ServerSocket(PORT)) {
-            serverSocket.setReuseAddress(true); // Prevent "Address already in use" errors
+            serverSocket.setReuseAddress(true); // Allow reusing the port after program restarts
 
             while (true) {
                 try (Socket clientSocket = serverSocket.accept()) {
-                    System.err.println("Client connected!");
-                    handleClient(clientSocket);
+                    System.out.println("Client connected!");
+                    DataInputStream inputStream = new DataInputStream(clientSocket.getInputStream());
+                    OutputStream outputStream = clientSocket.getOutputStream();
+
+                    // Process multiple requests sequentially from the same client
+                    while (true) {
+                        try {
+                            handleRequest(inputStream, outputStream);
+                        } catch (IOException e) {
+                            System.err.println("Error processing request: " + e.getMessage());
+                            break; // Exit the loop if an error occurs
+                        }
+                    }
                 } catch (IOException e) {
                     System.err.println("Error handling client: " + e.getMessage());
                 }
@@ -28,102 +40,58 @@ public class Main {
         }
     }
 
-    private static void handleClient(Socket clientSocket) throws IOException {
-        InputStream in = clientSocket.getInputStream();
-        OutputStream out = clientSocket.getOutputStream();
+    private static void handleRequest(DataInputStream inputStream, OutputStream outputStream) throws IOException {
+        // Read request message size (4 bytes)
+        int incomingMessageSize = inputStream.readInt();
 
-        while (true) { // Loop to handle multiple requests
-            try {
-                if (in.available() < 4) {
-                    Thread.sleep(10); // Avoid busy waiting if no data is available
-                    continue;
-                }
+        // Read API key (2 bytes)
+        byte[] requestApiKeyBytes = inputStream.readNBytes(2);
 
-                // Parse the request
-                RequestData requestData = parseRequest(in);
-
-                // Prepare the response
-                ByteArrayOutputStream responseStream = prepareResponse(requestData);
-
-                // Send the response
-                sendResponse(out, responseStream);
-            } catch (IOException | InterruptedException e) {
-                System.err.println("Client disconnected or error occurred: " + e.getMessage());
-                break;
-            }
-        }
-    }
-
-    private static RequestData parseRequest(InputStream in) throws IOException {
-        // Read size (4 bytes, not used)
-        in.readNBytes(4);
-
-        // Read API key (2 bytes, not used)
-        in.readNBytes(2);
-
-        // Read API version (2 bytes, used later)
-        byte[] apiVersionBytes = in.readNBytes(2);
-        short apiVersion = ByteBuffer.wrap(apiVersionBytes).getShort();
-        System.err.println("Parsed API Version: " + apiVersion);
+        // Read API version (2 bytes)
+        short requestApiVersion = inputStream.readShort();
 
         // Read correlation ID (4 bytes)
-        byte[] correlationId = in.readNBytes(4);
-        System.err.println("Parsed Correlation ID: " + Arrays.toString(correlationId));
+        byte[] correlationIdBytes = inputStream.readNBytes(4);
 
-        return new RequestData(apiVersion, correlationId);
-    }
+        // Read remaining bytes (remaining payload size)
+        byte[] remainingBytes = new byte[incomingMessageSize - 8];
+        inputStream.readFully(remainingBytes);
 
-    private static ByteArrayOutputStream prepareResponse(RequestData requestData) throws IOException {
-        ByteArrayOutputStream bos = new ByteArrayOutputStream();
+        // Build the response
+        ByteArrayOutputStream responseStream = new ByteArrayOutputStream();
 
-        // Add correlation ID
-        bos.write(requestData.correlationId);
+        // Write Response Header: Correlation ID
+        responseStream.write(correlationIdBytes);
 
-        if (requestData.apiVersion < 0 || requestData.apiVersion > 4) {
-            // Unsupported API version
-            bos.write(new byte[]{0, 35}); // Error code 35 (UNSUPPORTED_VERSION)
+        // Write Response Body
+        if (requestApiVersion < 0 || requestApiVersion > 4) {
+            // Write error code for unsupported version
+            responseStream.write(ByteBuffer.allocate(2).putShort((short) 35).array()); // Error code 35
         } else {
-            // Supported API version
-            bos.write(new byte[]{0, 0});        // Error code 0 (No Error)
-            bos.write(ByteBuffer.allocate(4).putInt(1).array()); // Number of API keys (1 key)
+            // Write success response
+            responseStream.write(new byte[]{0, 0}); // Error code 0 (No Error)
+            responseStream.write(ByteBuffer.allocate(4).putInt(1).array()); // Number of API keys (1 key)
 
-            // Write API key entry
-            bos.write(new byte[]{0, 18});       // API key (18 for ApiVersions)
-            bos.write(new byte[]{0, 0});       // Min version
-            bos.write(new byte[]{0, 4});       // Max version
-            bos.write(ByteBuffer.allocate(4).putInt(0).array()); // Throttle time (0)
+            // API Key Entry
+            responseStream.write(new byte[]{0, 18}); // API key (18 for ApiVersions)
+            responseStream.write(new byte[]{0, 0}); // Min version (0)
+            responseStream.write(new byte[]{0, 4}); // Max version (4)
+            responseStream.write(ByteBuffer.allocate(4).putInt(0).array()); // Throttle time (0)
 
-            // Correctly encode TAG_BUFFER
-            bos.write(0x00); // TAG_BUFFER: empty compact array
+            // TAG_BUFFER: Encode as an empty compact array
+            responseStream.write(0x00);
         }
 
-        return bos;
-    }
+        // Write the response
+        byte[] responseBytes = responseStream.toByteArray();
 
-    private static void sendResponse(OutputStream out, ByteArrayOutputStream bos) throws IOException {
-        // Calculate and write the size
-        byte[] sizeBytes = ByteBuffer.allocate(4).putInt(bos.size()).array();
-        out.write(sizeBytes);
+        // Write message size (4 bytes)
+        outputStream.write(ByteBuffer.allocate(4).putInt(responseBytes.length).array());
 
-        // Write the response body
-        byte[] response = bos.toByteArray();
-        out.write(response);
+        // Write the response itself
+        outputStream.write(responseBytes);
 
-        // Flush the output stream
-        out.flush();
-
-        System.err.println("Response sent. Size: " + bos.size());
-        System.err.println("Response Content: " + Arrays.toString(response));
-    }
-
-    // Helper class to hold parsed request data
-    private static class RequestData {
-        short apiVersion;
-        byte[] correlationId;
-
-        public RequestData(short apiVersion, byte[] correlationId) {
-            this.apiVersion = apiVersion;
-            this.correlationId = correlationId;
-        }
+        System.out.println("Response sent. Size: " + responseBytes.length);
+        System.out.println("Response Content: " + Arrays.toString(responseBytes));
     }
 }
