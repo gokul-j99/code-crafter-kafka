@@ -47,6 +47,7 @@ public class MessageHandler {
                 response = FetchResponse.makeBody(responseHeader,request);
                 break;
             case API_VERSIONS:
+                System.out.println("APi ver res");
                 response = ApiVersionsResponse.makeBody(responseHeader,  request);
                 break;
             case DESCRIBE_TOPIC_PARTITIONS:

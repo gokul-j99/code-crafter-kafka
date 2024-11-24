@@ -32,7 +32,7 @@ public class ApiVersionsResponse extends AbstractResponse {
         }
 
         List<ApiVersionsResponseApiKey> apiKeys = new ArrayList<>();
-        apiKeys.add(new ApiVersionsResponseApiKey(Constants.ApiKey.FETCH, (short) 0, (short) 16));
+        apiKeys.add(new ApiVersionsResponseApiKey(Constants.ApiKey.FETCH, (short) 0, (short) 18));
         apiKeys.add(new ApiVersionsResponseApiKey(Constants.ApiKey.API_VERSIONS, (short) 0, (short) 4));
         apiKeys.add(new ApiVersionsResponseApiKey(Constants.ApiKey.DESCRIBE_TOPIC_PARTITIONS, (short) 0, (short) 0));
 

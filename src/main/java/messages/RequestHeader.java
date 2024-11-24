@@ -69,9 +69,5 @@ public class RequestHeader {
         return new String(bytes, "UTF-8"); // Decode bytes to UTF-8 string
     }
 
-    // Decode tagged fields (stub for now)
-    private static void decodeTaggedFields(DataInputStream inputStream) throws IOException {
-        // Logic to decode tagged fields can be added here if necessary
-        // Example: Skip or process tagged fields
-    }
+
 }
