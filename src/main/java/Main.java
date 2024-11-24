@@ -100,8 +100,8 @@ public class Main {
         int apiKeyCount = 1;
 
         // Calculate response body size
-        // error_code (2 bytes) + api_key_count (4 bytes) + api_key_entry (6 bytes per entry)
-        int bodySize = 2 + 4 + (6 * apiKeyCount);
+        // error_code (2 bytes) + api_key_count (4 bytes) + api_key_entry (6 bytes per entry) + TAG_BUFFER (1 byte for empty buffer)
+        int bodySize = 2 + 4 + (6 * apiKeyCount) + 1;
 
         byte[] responseBody = new byte[bodySize];
         int offset = 0;
@@ -129,7 +129,11 @@ public class Main {
         responseBody[offset++] = (byte) ((maxVersion >> 8) & 0xFF);
         responseBody[offset++] = (byte) (maxVersion & 0xFF);
 
+        // TAG_BUFFER (empty compact array, 1 byte)
+        responseBody[offset++] = 0x00;
+
         return responseBody;
     }
+
 
 }
