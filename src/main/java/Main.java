@@ -38,6 +38,11 @@ public class Main {
             while (true) {
                 var request = request(clientSocket.getInputStream());
                 if (request == null) {
+
+                    var buffer = ByteBuffer.allocate(2);
+                    buffer.putShort(0, (short)0);
+                    buffer.putShort(1, (short)42);
+                    respond(buffer, clientSocket.getOutputStream());
                     break;
                 }
                 var response = process(request);
@@ -50,6 +55,7 @@ public class Main {
 
     private static ByteBuffer request(InputStream inputStream) throws IOException {
         var length = ByteBuffer.wrap(inputStream.readNBytes(4)).getInt();
+
         var payload = inputStream.readNBytes(length);
         return ByteBuffer.allocate(length).put(payload).rewind();
     }
@@ -93,7 +99,7 @@ public class Main {
         buffer.putInt(responseSize); // Message size
         buffer.putInt(correlationId); // Correlation ID
         buffer.putShort((short) errorCode); // Error code
-        buffer.put((byte) 2); // Number of API key entries
+        buffer.put((byte) 3); // Number of API key entries
         buffer.put(apiversionsEntry); // APIVersions entry
         buffer.put(describeTopicPartitionsEntry); // DescribeTopicPartitions entry
 
@@ -104,7 +110,9 @@ public class Main {
         return ByteBuffer.allocate(6)
                 .putShort(apiKey) // API key
                 .putShort(minVersion) // Min version
-                .putShort(maxVersion); // Max version
+                .putShort(maxVersion)
+                .putShort((short)0); // Max version.
+
     }
 
     private static void respond(ByteBuffer response, OutputStream outputStream) throws IOException {
