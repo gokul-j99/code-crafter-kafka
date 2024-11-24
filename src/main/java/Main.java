@@ -1,141 +1,99 @@
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
-
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 public class Main {
     public static void main(String[] args) {
-        System.err.println("Logs from your program will appear here!");
-
-        ServerSocket serverSocket = null;
+        System.err.println("Starting server...");
+        ServerSocket serverSocket;
         Socket clientSocket = null;
         int port = 9092;
-
         try {
             serverSocket = new ServerSocket(port);
+            // Since the tester restarts your program quite often, setting
+            // SO_REUSEADDR ensures that we don't run into 'Address already in use'
+            // errors
             serverSocket.setReuseAddress(true);
-
-            // Wait for a connection from the client.
+            // Wait for connection from client.
             clientSocket = serverSocket.accept();
-            System.err.println("Client connected!");
+            // Get input stream
+            InputStream in = clientSocket.getInputStream();
+            // Get output stream
+            OutputStream out = clientSocket.getOutputStream();
+            // request
+            // size 4 byte
+            in.readNBytes(4);
+            // RQ header
+            // api key 16bit
+            var apiKey = in.readNBytes(2);
+            // api version 16bit
+            var apiVersionBytes = in.readNBytes(2);
+            var apiVersion = ByteBuffer.wrap(apiVersionBytes).getShort();
+            // correlation id 32bit
+            byte[] cId = in.readNBytes(4);
+            // client_id nullable string
+            // tagged fields nullable
+            // response
+            var bos = new ByteArrayOutputStream();
+            // size 32bit
 
-            // Read the request
-            byte[] buffer = new byte[256];
-            clientSocket.getInputStream().read(buffer);
+            // written directly to output stream below
+            //            bos.write(new byte[]{0, 0, 0, 0});
+            // correlation id 32bit
 
-            // Parse the request_api_version (bytes 6 and 7)
-            int requestApiVersion = ((buffer[6] & 0xFF) << 8) | (buffer[7] & 0xFF);
+            bos.write(cId);
+            // tagged fields nullable
+            //            bos.write(0); // tagged fields
+            // request specific data
+            // error code 16bit
+            // APIVersions (v4)
+            if (apiVersion < 0 || apiVersion > 4) {
 
-            // Parse the correlation_id (bytes 8 to 11)
-            int correlationId = ((buffer[8] & 0xFF) << 24) | ((buffer[9] & 0xFF) << 16)
-                    | ((buffer[10] & 0xFF) << 8) | (buffer[11] & 0xFF);
-
-            System.err.println("Parsed request_api_version: " + requestApiVersion);
-            System.err.println("Parsed correlation_id: " + correlationId);
-
-            byte[] responseBody;
-
-            // Handle API version validation
-            if (requestApiVersion > 4) {
-                // Unsupported version: return error code 35
-                responseBody = createErrorResponseBody(35);
+                // error code 16bit
+                bos.write(new byte[] {0, 35});
             } else {
-                // Valid version: construct the normal response
-                responseBody = createApiVersionsResponseBody();
+                
+                // error code 16bit
+                //    api_key => INT16
+                //    min_version => INT16
+                //    max_version => INT16
+                //  throttle_time_ms => INT32
+                bos.write(new byte[] {0, 0});       // error code
+                bos.write(2);                       // array size + 1
+                bos.write(new byte[] {0, 18});      // api_key
+                bos.write(new byte[] {0, 3});       // min version
+                bos.write(new byte[] {0, 4});       // max version
+                bos.write(0);                       // tagged fields
+                bos.write(new byte[] {0, 0, 0, 0}); // throttle time
+                // All requests and responses will end with a tagged field buffer.  If
+                // there are no tagged fields, this will only be a single zero byte.
+                bos.write(0); // tagged fields
             }
-
-            int messageSize = 4 + responseBody.length; // 4 bytes for correlation_id + body length
-            byte[] response = new byte[4 + 4 + responseBody.length]; // message_size + correlation_id + body
-            int offset = 0;
-
-            // message_size (4 bytes)
-            response[offset++] = (byte) ((messageSize >> 24) & 0xFF);
-            response[offset++] = (byte) ((messageSize >> 16) & 0xFF);
-            response[offset++] = (byte) ((messageSize >> 8) & 0xFF);
-            response[offset++] = (byte) (messageSize & 0xFF);
-
-            // correlation_id (4 bytes)
-            response[offset++] = (byte) ((correlationId >> 24) & 0xFF);
-            response[offset++] = (byte) ((correlationId >> 16) & 0xFF);
-            response[offset++] = (byte) ((correlationId >> 8) & 0xFF);
-            response[offset++] = (byte) (correlationId & 0xFF);
-
-            // Add the response body
-            System.arraycopy(responseBody, 0, response, offset, responseBody.length);
-
-            // Send the response
-            OutputStream outputStream = clientSocket.getOutputStream();
-            outputStream.write(response);
-            outputStream.flush();
-            System.err.println("Response sent to the client!");
-
+            // error message nullable string
+            // tagged fields nullable
+            int size = bos.size();
+            byte[] sizeBytes = ByteBuffer.allocate(4).putInt(size).array();
+            var response = bos.toByteArray();
+            System.out.println(Arrays.toString(sizeBytes));
+            System.out.println(Arrays.toString(response));
+            out.write(sizeBytes);
+            out.write(response);
+            out.flush();
         } catch (IOException e) {
-            System.err.println("IOException: " + e.getMessage());
+            System.out.println("IOException: " + e.getMessage());
         } finally {
             try {
                 if (clientSocket != null) {
                     clientSocket.close();
                 }
-                if (serverSocket != null) {
-                    serverSocket.close();
-                }
             } catch (IOException e) {
-                System.err.println("IOException during cleanup: " + e.getMessage());
+                System.out.println("IOException: " + e.getMessage());
             }
         }
     }
-
-    private static byte[] createErrorResponseBody(int errorCode) {
-        byte[] responseBody = new byte[2]; // error_code only
-        responseBody[0] = (byte) ((errorCode >> 8) & 0xFF);
-        responseBody[1] = (byte) (errorCode & 0xFF);
-        return responseBody;
-    }
-
-    private static byte[] createApiVersionsResponseBody() {
-        int apiKey = 18; // API_VERSIONS
-        int minVersion = 0;
-        int maxVersion = 4;
-        int errorCode = 0;
-        int apiKeyCount = 1;
-
-        // Calculate response body size
-        // error_code (2 bytes) + api_key_count (4 bytes) + api_key_entry (6 bytes per entry) + TAG_BUFFER (1 byte for empty buffer)
-        int bodySize = 2 + 4 + (6 * apiKeyCount) + 1;
-
-        byte[] responseBody = new byte[bodySize];
-        int offset = 0;
-
-        // error_code (2 bytes)
-        responseBody[offset++] = (byte) ((errorCode >> 8) & 0xFF);
-        responseBody[offset++] = (byte) (errorCode & 0xFF);
-
-        // api_key_count (4 bytes)
-        responseBody[offset++] = (byte) ((apiKeyCount >> 24) & 0xFF);
-        responseBody[offset++] = (byte) ((apiKeyCount >> 16) & 0xFF);
-        responseBody[offset++] = (byte) ((apiKeyCount >> 8) & 0xFF);
-        responseBody[offset++] = (byte) (apiKeyCount & 0xFF);
-
-        // API key entry
-        // api_key (2 bytes)
-        responseBody[offset++] = (byte) ((apiKey >> 8) & 0xFF);
-        responseBody[offset++] = (byte) (apiKey & 0xFF);
-
-        // min_version (2 bytes)
-        responseBody[offset++] = (byte) ((minVersion >> 8) & 0xFF);
-        responseBody[offset++] = (byte) (minVersion & 0xFF);
-
-        // max_version (2 bytes)
-        responseBody[offset++] = (byte) ((maxVersion >> 8) & 0xFF);
-        responseBody[offset++] = (byte) (maxVersion & 0xFF);
-
-        // TAG_BUFFER (empty compact array, 1 byte)
-        responseBody[offset++] = 0x00;
-
-        return responseBody;
-    }
-
-
-
-
 }
