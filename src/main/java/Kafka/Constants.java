@@ -23,6 +23,8 @@ public class Constants {
 
         public static ApiKey decode(DataInputStream inputStream) throws IOException {
             int intValue = inputStream.readShort(); // Decode as a 16-bit integer
+            System.out.println(intValue);
+
             for (ApiKey apiKey : ApiKey.values()) {
                 if (apiKey.getValue() == intValue) {
                     return apiKey;

@@ -2,6 +2,7 @@ package messages;
 
 
 import Kafka.Constants;
+import Kafka.PrimitiveTypes;
 
 import java.io.DataInputStream;
 import java.io.IOException;
@@ -39,11 +40,20 @@ public class RequestHeader {
 
     // Decode method
     public static RequestHeader decode(DataInputStream inputStream) throws IOException {
+        System.out.println("Apikey:");
         Constants.ApiKey apiKey = Constants.ApiKey.decode(inputStream);
+
+        System.out.println(apiKey);
+        System.out.println("Apiversion:");
         int apiVersion = inputStream.readShort(); // Decode as a 16-bit integer
+        System.out.println(apiVersion);
         int correlationId = inputStream.readInt(); // Decode as a 32-bit integer
+        System.out.println("Corelationid:");
+        System.out.println(correlationId);
         String clientId = decodeNullableString(inputStream);
-        decodeTaggedFields(inputStream); // Handle tagged fields (if necessary)
+        System.out.println("Clientid:");
+        System.out.println(clientId);
+        PrimitiveTypes.decodeTaggedFields(inputStream); // Handle tagged fields (if necessary)
 
         return new RequestHeader(apiKey, apiVersion, correlationId, clientId);
     }

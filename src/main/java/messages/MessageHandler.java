@@ -9,6 +9,8 @@ public class MessageHandler {
         int n = inputStream.readInt();
         byte[] data = new byte[n];
         inputStream.readFully(data);
+        System.out.println("Length:");
+        System.out.println(n);
         ByteArrayInputStream binaryStream = new ByteArrayInputStream(data);
         DataInputStream dataInputStream = new DataInputStream(binaryStream);
 
