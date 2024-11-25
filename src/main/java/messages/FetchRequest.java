@@ -56,9 +56,25 @@ public class FetchRequest extends AbstractRequest {
         System.out.println("sessionEpoch :");
         System.out.println(sessionEpoch);
         List<FetchRequestTopic> topics = decodeCompactArray(inputStream, FetchRequestTopic::decode);
+
+        System.out.println("FetchRequestTopic :");
+        for (FetchRequestTopic top: topics
+             ) {
+            System.out.println(top);
+        }
+
         List<FetchRequestForgottenTopic> forgottenTopicsData =
                 decodeCompactArray(inputStream, FetchRequestForgottenTopic::decode);
+        System.out.println("forgottenTopicsData :");
+        for (FetchRequestForgottenTopic top: forgottenTopicsData
+        ) {
+            System.out.println(top);
+        }
         String rackId = decodeCompactString(inputStream);
+
+        System.out.println("rackId :");
+        System.out.println(rackId);
+
         PrimitiveTypes.decodeTaggedFields(inputStream);
 
         return new FetchRequest(maxWaitMs, minBytes, maxBytes, isolationLevel, sessionId, sessionEpoch, topics,
