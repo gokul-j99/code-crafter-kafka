@@ -73,7 +73,8 @@ public class Record {
         int valueLength = PrimitiveTypes.decodeVarint(inputStream);
 
         // Adjust value length (divide by 2)
-        byte[] value = new byte[valueLength / 2];
+        int x = valueLength / 2;
+        byte[] value = new byte[x];
         inputStream.readFully(value);
 
         List<RecordHeader> headers = PrimitiveTypes.decodeCompactArray(inputStream, RecordHeader::decode);

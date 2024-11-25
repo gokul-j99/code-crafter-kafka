@@ -99,18 +99,18 @@ public class RecordBatch {
     // Decode method
     public static RecordBatch decode(DataInputStream inputStream) throws IOException {
         return new RecordBatch(
-                PrimitiveTypes.decodeInt64(inputStream), // base_offset
-                PrimitiveTypes.decodeInt32(inputStream), // batch_length
-                PrimitiveTypes.decodeInt32(inputStream), // partition_leader_epoch
-                PrimitiveTypes.decodeInt8(inputStream),  // magic
+                inputStream.readLong(),
+                inputStream.readInt(),
+                inputStream.readInt(),
+                inputStream.readByte(),// magic
                 PrimitiveTypes.decodeUInt32(inputStream), // crc
-                PrimitiveTypes.decodeInt16(inputStream), // attributes
-                PrimitiveTypes.decodeInt32(inputStream), // last_offset_delta
-                PrimitiveTypes.decodeInt64(inputStream), // base_timestamp
-                PrimitiveTypes.decodeInt64(inputStream), // max_timestamp
-                PrimitiveTypes.decodeInt64(inputStream), // producer_id
-                PrimitiveTypes.decodeInt16(inputStream), // producer_epoch
-                PrimitiveTypes.decodeInt32(inputStream),
+                inputStream.readShort(),
+                inputStream.readInt(),
+                inputStream.readLong(),
+                inputStream.readLong(),
+                inputStream.readLong(),
+                inputStream.readShort(),
+                inputStream.readInt(),
                 PrimitiveTypes.decodeArray(inputStream, Record::decode) // records
         );// base_sequence
 
@@ -157,13 +157,5 @@ public class RecordBatch {
     }
 
 
-
-
-
-    public static int calculateCRC(byte[] data) {
-        CRC32C crc32c = new CRC32C();
-        crc32c.update(data);
-        return (int) crc32c.getValue();
-    }
 
 }
