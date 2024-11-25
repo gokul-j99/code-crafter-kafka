@@ -18,9 +18,9 @@ public class FetchRequestForgottenTopic {
     }
 
     public static FetchRequestForgottenTopic decode(DataInputStream inputStream) throws IOException {
-        UUID topicId = decodeUUID(inputStream);
+        UUID topicId = PrimitiveTypes.decodeUUID(inputStream);
         List<Integer> partitions = decodeCompactArray(inputStream, input -> input.readInt());
-        decodeTaggedFields(inputStream);
+        PrimitiveTypes.decodeTaggedFields(inputStream);
         return new FetchRequestForgottenTopic(topicId, partitions);
     }
 
@@ -30,9 +30,7 @@ public class FetchRequestForgottenTopic {
         return new UUID(mostSigBits, leastSigBits);
     }
 
-    private static void decodeTaggedFields(DataInputStream inputStream) throws IOException {
-        inputStream.skipBytes(inputStream.available());
-    }
+
 
     @Override
     public String toString() {
