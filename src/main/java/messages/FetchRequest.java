@@ -18,13 +18,14 @@ public class FetchRequest extends AbstractRequest {
     private final List<FetchRequestTopic> topics;
     private final List<FetchRequestForgottenTopic> forgottenTopicsData;
     private final String rackId;
+    private final RequestHeader requestHeader;
 
 
 
     public FetchRequest(int maxWaitMs, int minBytes, int maxBytes, int isolationLevel, int sessionId, int sessionEpoch,
                         List<FetchRequestTopic> topics, List<FetchRequestForgottenTopic> forgottenTopicsData,
-                        String rackId) {
-
+                        String rackId, RequestHeader requestHeader) {
+        super(requestHeader);
         this.maxWaitMs = maxWaitMs;
         this.minBytes = minBytes;
         this.maxBytes = maxBytes;
@@ -34,6 +35,7 @@ public class FetchRequest extends AbstractRequest {
         this.topics = topics;
         this.forgottenTopicsData = forgottenTopicsData;
         this.rackId = rackId;
+        this.requestHeader = requestHeader;
     }
 
     public static FetchRequest decodeBody(DataInputStream inputStream, RequestHeader requestHeader) throws IOException {
@@ -89,7 +91,7 @@ public class FetchRequest extends AbstractRequest {
         PrimitiveTypes.decodeTaggedFields(inputStream);
 
         return new FetchRequest(maxWaitMs, minBytes, maxBytes, isolationLevel, sessionId, sessionEpoch, topics,
-                forgottenTopicsData, rackId);
+                forgottenTopicsData, rackId,requestHeader);
     }
 
     private static String decodeCompactString(DataInputStream inputStream) throws IOException {

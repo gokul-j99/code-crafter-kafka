@@ -21,7 +21,6 @@ public class MessageHandler {
             case FETCH:
                 System.out.println("Fetch req");
                 request = FetchRequest.decodeBody(dataInputStream, requestHeader);
-
                 break;
             case API_VERSIONS:
                 System.out.println("APi ver req");
