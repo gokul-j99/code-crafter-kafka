@@ -98,7 +98,8 @@ public class RecordBatch {
 
     // Decode method
     public static RecordBatch decode(DataInputStream inputStream) throws IOException {
-        return new RecordBatch(
+
+        RecordBatch rec = new RecordBatch(
                 inputStream.readLong(),
                 inputStream.readInt(),
                 inputStream.readInt(),
@@ -111,8 +112,9 @@ public class RecordBatch {
                 inputStream.readLong(),
                 inputStream.readShort(),
                 inputStream.readInt(),
-                PrimitiveTypes.decodeArray(inputStream, Record::decode) // records
-        );// base_sequence
+                PrimitiveTypes.decodeArray(inputStream, Record::decode) );// records
+        System.out.println(rec);
+        return rec;
 
 
        /* PrimitiveTypes.encodeInt64(bufferOutput, baseOffset);
@@ -156,6 +158,22 @@ public class RecordBatch {
 
     }
 
-
-
+    @Override
+    public String toString() {
+        return "RecordBatch{" +
+                "baseOffset=" + baseOffset +
+                ", batchLength=" + batchLength +
+                ", partitionLeaderEpoch=" + partitionLeaderEpoch +
+                ", magic=" + magic +
+                ", crc=" + crc +
+                ", attributes=" + attributes +
+                ", lastOffsetDelta=" + lastOffsetDelta +
+                ", baseTimestamp=" + baseTimestamp +
+                ", maxTimestamp=" + maxTimestamp +
+                ", producerId=" + producerId +
+                ", producerEpoch=" + producerEpoch +
+                ", baseSequence=" + baseSequence +
+                ", records=" + records +
+                '}';
+    }
 }
