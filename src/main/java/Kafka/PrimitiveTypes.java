@@ -42,14 +42,8 @@ public class PrimitiveTypes {
     }
 
     public static long decodeUInt32(DataInputStream inputStream) throws IOException {
-        byte[] bytes = new byte[4];
-        inputStream.readFully(bytes); // Ensures exactly 4 bytes are read, or throws an EOFException
-
-        // Convert the byte array to an unsigned 32-bit integer
-        return ((bytes[0] & 0xFFL) << 24) |
-                ((bytes[1] & 0xFFL) << 16) |
-                ((bytes[2] & 0xFFL) << 8)  |
-                (bytes[3] & 0xFFL);
+        int data = inputStream.readInt();
+        return Integer.toUnsignedLong(data);
     }
 
     public static int decodeVarint(DataInputStream inputStream) throws IOException {
@@ -270,17 +264,11 @@ public class PrimitiveTypes {
 
 
     public static void encodeUInt32(DataOutputStream outputStream, long value) throws IOException {
-        // Validate that the value is within the range of an unsigned 32-bit integer
         if (value < 0 || value > 0xFFFFFFFFL) {
-            System.out.println("Value out of range for unsigned 32-bit integer:");
-            System.out.println(value);
             throw new IllegalArgumentException("Value out of range for unsigned 32-bit integer: " + value);
         }
-
-        // Write the value as a signed 32-bit integer (casting to int)
-        outputStream.writeInt((int) value);
+        outputStream.writeInt((int) value); // Cast to int, as Java uses signed 32-bit integers
     }
-
 
 
 
