@@ -51,6 +51,7 @@ public class MessageHandler {
                 response = ApiVersionsResponse.makeBody(responseHeader,  request);
                 break;
             case DESCRIBE_TOPIC_PARTITIONS:
+                System.out.println("DESCRIBE_TOPIC_PARTITIONS  res");
                 response = DescribeTopicPartitionsResponse.makeBody(responseHeader, request);
                 break;
             default:
