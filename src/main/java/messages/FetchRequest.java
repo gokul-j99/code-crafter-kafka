@@ -72,7 +72,7 @@ public class FetchRequest extends AbstractRequest {
                 System.out.println(topic);
             }
         }
-
+        System.out.println("forgottenTopicsData :");
         List<FetchRequestForgottenTopic> forgottenTopicsData =
                 decodeCompactArray(inputStream, FetchRequestForgottenTopic::decode);
         System.out.println("forgottenTopicsData :");
