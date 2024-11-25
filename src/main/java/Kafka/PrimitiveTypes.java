@@ -112,7 +112,9 @@ public class PrimitiveTypes {
 
     public static <T> List<T> decodeCompactArray(DataInputStream inputStream, DecoderFunction<T> decoder) throws IOException {
         int length = decodeVarint(inputStream) - 1;
-        if (length < 0) return null;
+        if (length < 0) {
+            return new ArrayList<>(); // Return an empty list instead of null
+        }
 
         List<T> list = new ArrayList<>();
         for (int i = 0; i < length; i++) {
@@ -120,6 +122,7 @@ public class PrimitiveTypes {
         }
         return list;
     }
+
 
 
     public static void decodeTaggedFields(DataInputStream inputStream) throws IOException {

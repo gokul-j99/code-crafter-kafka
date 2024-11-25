@@ -36,42 +36,53 @@ public class FetchRequest extends AbstractRequest {
         this.rackId = rackId;
     }
 
-    public static FetchRequest decodeBody(DataInputStream inputStream,  RequestHeader requestHeader ) throws IOException {
+    public static FetchRequest decodeBody(DataInputStream inputStream, RequestHeader requestHeader) throws IOException {
         int maxWaitMs = inputStream.readInt();
         System.out.println("maxWaitMs :");
         System.out.println(maxWaitMs);
+
         int minBytes = inputStream.readInt();
         System.out.println("minBytes :");
         System.out.println(minBytes);
+
         int maxBytes = inputStream.readInt();
         System.out.println("maxBytes :");
         System.out.println(maxBytes);
+
         int isolationLevel = inputStream.readByte();
         System.out.println("isolationLevel :");
         System.out.println(isolationLevel);
+
         int sessionId = inputStream.readInt();
         System.out.println("sessionId :");
         System.out.println(sessionId);
+
         int sessionEpoch = inputStream.readInt();
         System.out.println("sessionEpoch :");
         System.out.println(sessionEpoch);
-        List<FetchRequestTopic> topics = decodeCompactArray(inputStream, FetchRequestTopic::decode);
 
+        List<FetchRequestTopic> topics = decodeCompactArray(inputStream, FetchRequestTopic::decode);
         System.out.println("FetchRequestTopic :");
-        for (FetchRequestTopic top: topics
-             ) {
-            System.out.println(top);
+        if (topics.isEmpty()) {
+            System.out.println("No topics in the Fetch request.");
+        } else {
+            for (FetchRequestTopic topic : topics) {
+                System.out.println(topic);
+            }
         }
 
         List<FetchRequestForgottenTopic> forgottenTopicsData =
                 decodeCompactArray(inputStream, FetchRequestForgottenTopic::decode);
         System.out.println("forgottenTopicsData :");
-        for (FetchRequestForgottenTopic top: forgottenTopicsData
-        ) {
-            System.out.println(top);
+        if (forgottenTopicsData.isEmpty()) {
+            System.out.println("No forgotten topics in the Fetch request.");
+        } else {
+            for (FetchRequestForgottenTopic forgottenTopic : forgottenTopicsData) {
+                System.out.println(forgottenTopic);
+            }
         }
-        String rackId = decodeCompactString(inputStream);
 
+        String rackId = PrimitiveTypes.decodeCompactString(inputStream);
         System.out.println("rackId :");
         System.out.println(rackId);
 
@@ -84,12 +95,14 @@ public class FetchRequest extends AbstractRequest {
     private static String decodeCompactString(DataInputStream inputStream) throws IOException {
         int length = inputStream.readUnsignedShort();
         if (length == 0) {
-            return "";
+            return ""; // Return an empty string for zero length
         }
+
         byte[] bytes = new byte[length];
         inputStream.readFully(bytes);
         return new String(bytes, "UTF-8");
     }
+
 
     private static void decodeTaggedFields(DataInputStream inputStream) throws IOException {
         inputStream.skipBytes(inputStream.available());
