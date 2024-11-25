@@ -84,10 +84,14 @@ public class PrimitiveTypes {
         if (length < 0) {
             return null; // Handle nullable compact string
         }
+        if (length == 0) {
+            return ""; // Empty string
+        }
         byte[] stringBytes = new byte[length];
         inputStream.readFully(stringBytes);
         return new String(stringBytes, StandardCharsets.UTF_8);
     }
+
 
 
     public static byte[] decodeBytes(DataInputStream inputStream) throws IOException {

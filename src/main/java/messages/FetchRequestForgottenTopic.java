@@ -18,7 +18,7 @@ public class FetchRequestForgottenTopic {
     }
 
     public static FetchRequestForgottenTopic decode(DataInputStream inputStream) throws IOException {
-        UUID topicId = PrimitiveTypes.decodeUUID(inputStream);
+        UUID topicId = decodeUUID(inputStream);
         List<Integer> partitions = decodeCompactArray(inputStream, input -> input.readInt());
         PrimitiveTypes.decodeTaggedFields(inputStream);
         return new FetchRequestForgottenTopic(topicId, partitions);

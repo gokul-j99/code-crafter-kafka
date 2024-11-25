@@ -94,21 +94,10 @@ public class FetchRequest extends AbstractRequest {
                 forgottenTopicsData, rackId,requestHeader);
     }
 
-    private static String decodeCompactString(DataInputStream inputStream) throws IOException {
-        int length = inputStream.readUnsignedShort();
-        if (length == 0) {
-            return ""; // Return an empty string for zero length
-        }
-
-        byte[] bytes = new byte[length];
-        inputStream.readFully(bytes);
-        return new String(bytes, "UTF-8");
-    }
 
 
-    private static void decodeTaggedFields(DataInputStream inputStream) throws IOException {
-        inputStream.skipBytes(inputStream.available());
-    }
+
+
 
     @Override
     public Object decodeBody(DataInputStream inputStream) throws IOException {
