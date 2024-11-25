@@ -7,6 +7,7 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.List;
+import java.util.zip.CRC32C;
 
 public class RecordBatch {
     private final long baseOffset;
@@ -117,11 +118,34 @@ public class RecordBatch {
 
     // Encode method
     public void encode(DataOutputStream outputStream) throws IOException {
+        // Create a buffer for the serialized data excluding the CRC
+        ByteArrayOutputStream bufferStream = new ByteArrayOutputStream();
+        DataOutputStream bufferOutput = new DataOutputStream(bufferStream);
+
+        // Write all fields except CRC
+        PrimitiveTypes.encodeInt64(bufferOutput, baseOffset);
+        PrimitiveTypes.encodeInt32(bufferOutput, batchLength);
+        PrimitiveTypes.encodeInt32(bufferOutput, partitionLeaderEpoch);
+        PrimitiveTypes.encodeInt8(bufferOutput, magic);
+        PrimitiveTypes.encodeInt16(bufferOutput, attributes);
+        PrimitiveTypes.encodeInt32(bufferOutput, lastOffsetDelta);
+        PrimitiveTypes.encodeInt64(bufferOutput, baseTimestamp);
+        PrimitiveTypes.encodeInt64(bufferOutput, maxTimestamp);
+        PrimitiveTypes.encodeInt64(bufferOutput, producerId);
+        PrimitiveTypes.encodeInt16(bufferOutput, producerEpoch);
+        PrimitiveTypes.encodeInt32(bufferOutput, baseSequence);
+        PrimitiveTypes.encodeArray(bufferOutput, records, (stream, record) -> record.encode(stream));
+
+        // Calculate CRC over the serialized fields
+        byte[] serializedData = bufferStream.toByteArray();
+        int calculatedCRC = calculateCRC(serializedData);
+
+        // Write fields including CRC to the final output
         PrimitiveTypes.encodeInt64(outputStream, baseOffset);
         PrimitiveTypes.encodeInt32(outputStream, batchLength);
         PrimitiveTypes.encodeInt32(outputStream, partitionLeaderEpoch);
         PrimitiveTypes.encodeInt8(outputStream, magic);
-        PrimitiveTypes.encodeUInt32(outputStream, crc);
+        PrimitiveTypes.encodeUInt32(outputStream, calculatedCRC); // Write the calculated CRC
         PrimitiveTypes.encodeInt16(outputStream, attributes);
         PrimitiveTypes.encodeInt32(outputStream, lastOffsetDelta);
         PrimitiveTypes.encodeInt64(outputStream, baseTimestamp);
@@ -131,4 +155,15 @@ public class RecordBatch {
         PrimitiveTypes.encodeInt32(outputStream, baseSequence);
         PrimitiveTypes.encodeArray(outputStream, records, (stream, record) -> record.encode(stream));
     }
+
+
+
+
+
+    public static int calculateCRC(byte[] data) {
+        CRC32C crc32c = new CRC32C();
+        crc32c.update(data);
+        return (int) crc32c.getValue();
+    }
+
 }

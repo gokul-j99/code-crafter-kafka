@@ -25,12 +25,14 @@ public class FetchResponseTopic {
         String topicName = clusterMetadata.getTopicName(requestTopic.getTopicId());
 
         if (topicName == null) {
+            // Return UNKNOWN_TOPIC_ID if topic doesn't exist
             List<FetchResponsePartition> partitions = List.of(
                     new FetchResponsePartition(0, Constants.ErrorCode.UNKNOWN_TOPIC_ID, 0, 0, 0, List.of(), 0, List.of())
             );
             return new FetchResponseTopic(requestTopic.getTopicId(), partitions);
         }
 
+        // Retrieve records from log file and build partitions
         List<FetchResponsePartition> partitions = new ArrayList<>();
         for (FetchRequestPartition partition : requestTopic.getPartitions()) {
             List<RecordBatch> records = (List<RecordBatch>) clusterMetadata.readRecordBatches(topicName, partition.getPartition());
@@ -39,6 +41,7 @@ public class FetchResponseTopic {
 
         return new FetchResponseTopic(requestTopic.getTopicId(), partitions);
     }
+
 
     public void encode(DataOutputStream outputStream) throws IOException {
         PrimitiveTypes.encodeUUID(outputStream, topicId);
