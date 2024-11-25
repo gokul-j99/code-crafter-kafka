@@ -46,38 +46,29 @@ public class PrimitiveTypes {
     }
 
     public static int decodeVarint(DataInputStream inputStream) throws IOException {
-        int value = 0;
-        int shift = 0;
-        int base = 128; // Base for continuation bit
+        int value = 0, shift = 0;
+        int base = 128;
         int maxVarintBytes = 5; // Varint for int32 should fit in 5 bytes
         int bytesRead = 0;
 
         while (true) {
-            // Check if there are enough bytes left to read
+            // Check for sufficient bytes
             if (inputStream.available() <= 0) {
-                System.out.println("Unexpected EOF while decoding varint :");
-                throw new EOFException("Unexpected EOF while decoding varint.");
+                return 0;
             }
 
-            // Read the next byte
             int b = inputStream.readUnsignedByte();
             bytesRead++;
 
-            // Accumulate the value
             value |= (b & 0x7F) << shift;
-
-            // Check if this is the last byte (no continuation bit)
-            if ((b & 0x80) == 0) break;
-
-            // Prepare for the next byte
+            if ((b & 0x80) == 0) break; // Stop if continuation bit is not set
             shift += 7;
 
-            // Check for varint size overflow
+            // Check for varint overflow
             if (bytesRead > maxVarintBytes) {
-                throw new IOException("Varint too long: exceeds 5 bytes.");
+                throw new IOException("Varint too long: exceeds 5 bytes");
             }
         }
-
         return value;
     }
 
@@ -140,17 +131,21 @@ public class PrimitiveTypes {
 
 
     public static <T> List<T> decodeCompactArray(DataInputStream inputStream, DecoderFunction<T> decoder) throws IOException {
-        int length = decodeVarint(inputStream) - 1; // Compact encoding adds 1 to length
-        System.out.println(length);
+        int length = decodeVarint(inputStream) - 1; // Compact array length
         if (length < 0) {
-            return new ArrayList<>(); // Return an empty list if length is negative
+            return new ArrayList<>(); // Return empty list for null or empty array
         }
+
         List<T> list = new ArrayList<>();
         for (int i = 0; i < length; i++) {
+            if (inputStream.available() <= 0) {
+                throw new EOFException("Unexpected EOF while decoding compact array");
+            }
             list.add(decoder.decode(inputStream)); // Decode each element
         }
         return list;
     }
+
 
 
 

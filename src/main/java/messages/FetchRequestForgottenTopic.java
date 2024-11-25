@@ -20,23 +20,21 @@ public class FetchRequestForgottenTopic {
 
     public static FetchRequestForgottenTopic decode(DataInputStream inputStream) throws IOException {
         if (inputStream.available() < 16) {
-
-            System.out.println("Not enough bytes to decode forgotten topic UUID ");
             throw new EOFException("Not enough bytes to decode forgotten topic UUID");
         }
 
         UUID topicId = decodeUUID(inputStream); // Read the topic ID
         List<Integer> partitions = decodeCompactArray(inputStream, input -> {
             if (input.available() < 4) {
-                System.out.println("Not enough bytes to decode partition ");
                 throw new EOFException("Not enough bytes to decode partition");
             }
             return input.readInt(); // Read each partition
         });
 
-        PrimitiveTypes.decodeTaggedFields(inputStream); // Skip tagged fields if present
+        PrimitiveTypes.decodeTaggedFields(inputStream); // Decode tagged fields if present
         return new FetchRequestForgottenTopic(topicId, partitions);
     }
+
 
 
     private static UUID decodeUUID(DataInputStream inputStream) throws IOException {
