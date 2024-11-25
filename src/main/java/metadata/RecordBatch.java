@@ -102,7 +102,7 @@ public class RecordBatch {
         int batchLength = PrimitiveTypes.decodeInt32(inputStream);
         int partitionLeaderEpoch = PrimitiveTypes.decodeInt32(inputStream);
         byte magic = PrimitiveTypes.decodeInt8(inputStream);
-        long crc = PrimitiveTypes.decodeUInt32(inputStream);
+        long crc = PrimitiveTypes.decodeUInt32(inputStream); // Read CRC
         short attributes = PrimitiveTypes.decodeInt16(inputStream);
         int lastOffsetDelta = PrimitiveTypes.decodeInt32(inputStream);
         long baseTimestamp = PrimitiveTypes.decodeInt64(inputStream);
@@ -112,9 +112,35 @@ public class RecordBatch {
         int baseSequence = PrimitiveTypes.decodeInt32(inputStream);
         List<Record> records = PrimitiveTypes.decodeArray(inputStream, Record::decode);
 
+        // Recalculate CRC and validate
+        ByteArrayOutputStream bufferStream = new ByteArrayOutputStream();
+        DataOutputStream bufferOutput = new DataOutputStream(bufferStream);
+
+        PrimitiveTypes.encodeInt64(bufferOutput, baseOffset);
+        PrimitiveTypes.encodeInt32(bufferOutput, batchLength);
+        PrimitiveTypes.encodeInt32(bufferOutput, partitionLeaderEpoch);
+        PrimitiveTypes.encodeInt8(bufferOutput, magic);
+        PrimitiveTypes.encodeInt16(bufferOutput, attributes);
+        PrimitiveTypes.encodeInt32(bufferOutput, lastOffsetDelta);
+        PrimitiveTypes.encodeInt64(bufferOutput, baseTimestamp);
+        PrimitiveTypes.encodeInt64(bufferOutput, maxTimestamp);
+        PrimitiveTypes.encodeInt64(bufferOutput, producerId);
+        PrimitiveTypes.encodeInt16(bufferOutput, producerEpoch);
+        PrimitiveTypes.encodeInt32(bufferOutput, baseSequence);
+        PrimitiveTypes.encodeArray(bufferOutput, records, (stream, record) -> record.encode(stream));
+
+        byte[] serializedData = bufferStream.toByteArray();
+        int calculatedCRC = calculateCRC(serializedData);
+
+        if (calculatedCRC != crc) {
+            System.out.println("CRC mismatch");
+            throw new IOException(String.format("CRC mismatch: calculated=%08x, expected=%08x", calculatedCRC, crc));
+        }
+
         return new RecordBatch(baseOffset, batchLength, partitionLeaderEpoch, magic, crc, attributes, lastOffsetDelta,
                 baseTimestamp, maxTimestamp, producerId, producerEpoch, baseSequence, records);
     }
+
 
     // Encode method
     public void encode(DataOutputStream outputStream) throws IOException {
