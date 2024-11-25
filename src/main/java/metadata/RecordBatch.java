@@ -113,6 +113,7 @@ public class RecordBatch {
                 inputStream.readShort(),
                 inputStream.readInt(),
                 PrimitiveTypes.decodeArray(inputStream, Record::decode) );// records
+        System.out.println("Record");
         System.out.println(rec);
         return rec;
 
