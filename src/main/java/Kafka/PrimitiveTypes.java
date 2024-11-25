@@ -116,6 +116,7 @@ public class PrimitiveTypes {
 
     public static <T> List<T> decodeCompactArray(DataInputStream inputStream, DecoderFunction<T> decoder) throws IOException {
         int length = decodeVarint(inputStream) - 1; // Compact encoding adds 1 to length
+        System.out.println(length);
         if (length < 0) {
             return new ArrayList<>(); // Return an empty list if length is negative
         }
