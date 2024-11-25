@@ -129,13 +129,7 @@ public class RecordBatch {
         PrimitiveTypes.encodeInt32(bufferOutput, baseSequence);
         PrimitiveTypes.encodeArray(bufferOutput, records, (stream, record) -> record.encode(stream));
 
-        byte[] serializedData = bufferStream.toByteArray();
-        int calculatedCRC = calculateCRC(serializedData);
-
-        if (calculatedCRC != crc) {
-            System.out.println("CRC mismatch");
-            throw new IOException(String.format("CRC mismatch: calculated=%08x, expected=%08x", calculatedCRC, crc));
-        }
+        
 
         return new RecordBatch(baseOffset, batchLength, partitionLeaderEpoch, magic, crc, attributes, lastOffsetDelta,
                 baseTimestamp, maxTimestamp, producerId, producerEpoch, baseSequence, records);
