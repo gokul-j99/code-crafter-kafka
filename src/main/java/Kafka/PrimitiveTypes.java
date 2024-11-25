@@ -115,29 +115,29 @@ public class PrimitiveTypes {
 
 
     public static <T> List<T> decodeCompactArray(DataInputStream inputStream, DecoderFunction<T> decoder) throws IOException {
-        int length = decodeVarint(inputStream) - 1;
+        int length = decodeVarint(inputStream) - 1; // Compact encoding adds 1 to length
         if (length < 0) {
-            return new ArrayList<>(); // Return an empty list instead of null
+            return new ArrayList<>(); // Return an empty list if length is negative
         }
-
         List<T> list = new ArrayList<>();
         for (int i = 0; i < length; i++) {
-            list.add(decoder.decode(inputStream));
+            list.add(decoder.decode(inputStream)); // Decode each element
         }
         return list;
     }
 
 
 
+
     public static void decodeTaggedFields(DataInputStream inputStream) throws IOException {
-        int numTaggedFields = PrimitiveTypes.decodeVarint(inputStream); // Decode the number of tagged fields
-        for (int i = 0; i < numTaggedFields; i++) {
-            int tag = PrimitiveTypes.decodeVarint(inputStream); // Read tag
-            int size = PrimitiveTypes.decodeVarint(inputStream); // Read size
-            byte[] value = new byte[size];
-            inputStream.readFully(value); // Consume the tagged field's value
+        int numFields = decodeVarint(inputStream);
+        for (int i = 0; i < numFields; i++) {
+            int tag = decodeVarint(inputStream);
+            int size = decodeVarint(inputStream);
+            inputStream.skipBytes(size); // Skip the field content
         }
     }
+
     // Encode Methods
     public static void encodeBoolean(DataOutputStream outputStream, boolean value) throws IOException {
         outputStream.writeBoolean(value);

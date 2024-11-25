@@ -1,6 +1,7 @@
 package messages;
 
 import java.io.DataInputStream;
+import java.io.EOFException;
 import java.io.IOException;
 import java.util.List;
 import java.util.UUID;
@@ -32,10 +33,14 @@ public class FetchRequestTopic {
     }
 
     private static UUID decodeUUID(DataInputStream inputStream) throws IOException {
+        if (inputStream.available() < 16) {
+            throw new EOFException("Not enough bytes to decode UUID");
+        }
         long mostSigBits = inputStream.readLong();
         long leastSigBits = inputStream.readLong();
         return new UUID(mostSigBits, leastSigBits);
     }
+
 
     private static void decodeTaggedFields(DataInputStream inputStream) throws IOException {
         inputStream.skipBytes(inputStream.available());
