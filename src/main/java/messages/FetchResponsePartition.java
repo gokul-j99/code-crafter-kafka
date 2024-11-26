@@ -33,7 +33,7 @@ public class FetchResponsePartition {
 
     public void encode(DataOutputStream outputStream) throws IOException {
         PrimitiveTypes.encodeInt32(outputStream, partitionIndex);
-        errorCode.encode(outputStream);
+        PrimitiveTypes.encodeInt16(outputStream, (short) errorCode.getValue());
         PrimitiveTypes.encodeInt64(outputStream, highWatermark);
         PrimitiveTypes.encodeInt64(outputStream, lastStableOffset);
         PrimitiveTypes.encodeInt64(outputStream, logStartOffset);
