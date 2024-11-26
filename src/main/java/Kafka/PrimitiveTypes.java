@@ -43,6 +43,8 @@ public class PrimitiveTypes {
 
     public static long decodeUInt32(DataInputStream inputStream) throws IOException {
         int data = inputStream.readInt();
+        System.out.println("decode uint");
+        System.out.println((data));
         return Integer.toUnsignedLong(data);
     }
 
@@ -269,6 +271,9 @@ public class PrimitiveTypes {
             System.out.println("Value out of range for unsigned 32-bit ");
             throw new IllegalArgumentException("Value out of range for unsigned 32-bit integer: " + value);
         }
+
+        System.out.println(value);
+        System.out.println(" long uint");
         outputStream.writeInt((int) value); // Cast to int, as Java uses signed 32-bit integers
     }
 
