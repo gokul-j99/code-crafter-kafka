@@ -265,6 +265,8 @@ public class PrimitiveTypes {
 
     public static void encodeUInt32(DataOutputStream outputStream, long value) throws IOException {
         if (value < 0 || value > 0xFFFFFFFFL) {
+            System.out.println(value);
+            System.out.println("Value out of range for unsigned 32-bit ");
             throw new IllegalArgumentException("Value out of range for unsigned 32-bit integer: " + value);
         }
         outputStream.writeInt((int) value); // Cast to int, as Java uses signed 32-bit integers
