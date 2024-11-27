@@ -117,24 +117,6 @@ public class RecordBatch {
         System.out.println(rec);
         return rec;
 
-
-       /* PrimitiveTypes.encodeInt64(bufferOutput, baseOffset);
-        PrimitiveTypes.encodeInt32(bufferOutput, batchLength);
-        PrimitiveTypes.encodeInt32(bufferOutput, partitionLeaderEpoch);
-        PrimitiveTypes.encodeInt8(bufferOutput, magic);
-        PrimitiveTypes.encodeInt16(bufferOutput, attributes);
-        PrimitiveTypes.encodeInt32(bufferOutput, lastOffsetDelta);
-        PrimitiveTypes.encodeInt64(bufferOutput, baseTimestamp);
-        PrimitiveTypes.encodeInt64(bufferOutput, maxTimestamp);
-        PrimitiveTypes.encodeInt64(bufferOutput, producerId);
-        PrimitiveTypes.encodeInt16(bufferOutput, producerEpoch);
-        PrimitiveTypes.encodeInt32(bufferOutput, baseSequence);
-        PrimitiveTypes.encodeArray(bufferOutput, records, (stream, record) -> record.encode(stream));
-
-
-
-        return new RecordBatch(baseOffset, batchLength, partitionLeaderEpoch, magic, crc, attributes, lastOffsetDelta,
-                baseTimestamp, maxTimestamp, producerId, producerEpoch, baseSequence, records);*/
     }
 
 
