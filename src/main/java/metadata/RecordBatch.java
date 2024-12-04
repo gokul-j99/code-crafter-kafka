@@ -8,6 +8,7 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.List;
 import java.util.zip.CRC32;
+import java.util.zip.CRC32C;
 
 public class RecordBatch {
     private final long baseOffset;
@@ -105,63 +106,86 @@ public class RecordBatch {
 
     // Decode method
     public static RecordBatch decode(DataInputStream inputStream) throws IOException {
-        RecordBatch rec = new RecordBatch(
-                inputStream.readLong(),
-                inputStream.readInt(),
-                inputStream.readInt(),
-                inputStream.readByte(), // magic
-                PrimitiveTypes.decodeUInt32(inputStream), // crc
-                inputStream.readShort(),
-                inputStream.readInt(),
-                inputStream.readLong(),
-                inputStream.readLong(),
-                inputStream.readLong(),
-                inputStream.readShort(),
-                inputStream.readInt(),
-                PrimitiveTypes.decodeArray(inputStream, Record::decode)); // records
-        System.out.println("Record");
-        System.out.println(rec);
-        return rec;
+        long baseOffset = inputStream.readLong();
+        int batchLength = inputStream.readInt();
+        int partitionLeaderEpoch = inputStream.readInt();
+        byte magic = inputStream.readByte();
+
+        // Treat CRC as unsigned
+        long crc = Integer.toUnsignedLong(inputStream.readInt());
+
+        short attributes = inputStream.readShort();
+        int lastOffsetDelta = inputStream.readInt();
+        long baseTimestamp = inputStream.readLong();
+        long maxTimestamp = inputStream.readLong();
+        long producerId = inputStream.readLong();
+        short producerEpoch = inputStream.readShort();
+        int baseSequence = inputStream.readInt();
+        List<Record> records = PrimitiveTypes.decodeArray(inputStream, Record::decode);
+
+        return new RecordBatch(
+                baseOffset, batchLength, partitionLeaderEpoch, magic, crc,
+                attributes, lastOffsetDelta, baseTimestamp, maxTimestamp,
+                producerId, producerEpoch, baseSequence, records
+        );
     }
+
 
     // Encode method with CRC recalculation
     public void encode(DataOutputStream outputStream) throws IOException {
-        // Create a buffer to hold the serialized data
-        ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-        DataOutputStream tempStream = new DataOutputStream(buffer);
+        ByteArrayOutputStream bufferStream = new ByteArrayOutputStream();
+        DataOutputStream bufferOutput = new DataOutputStream(bufferStream);
 
-        // Write fields before CRC
-        PrimitiveTypes.encodeInt64(tempStream, baseOffset);
-        PrimitiveTypes.encodeInt32(tempStream, 0); // Placeholder for batchLength
-        PrimitiveTypes.encodeInt32(tempStream, partitionLeaderEpoch);
-        PrimitiveTypes.encodeInt8(tempStream, magic);
-        int crcStartOffset = tempStream.size();
-        PrimitiveTypes.encodeUInt32(tempStream, 0); // Placeholder for CRC
-        int crcEndOffset = tempStream.size();
+        PrimitiveTypes.encodeInt64(bufferOutput, baseOffset);
+        PrimitiveTypes.encodeInt32(bufferOutput, 0); // Placeholder for batchLength
+        PrimitiveTypes.encodeInt32(bufferOutput, partitionLeaderEpoch);
+        PrimitiveTypes.encodeInt8(bufferOutput, magic);
+
+        // Placeholder for CRC
+        int crcStartOffset = bufferStream.size();
+        PrimitiveTypes.encodeInt32(bufferOutput, 0);
 
         // Write remaining fields
-        PrimitiveTypes.encodeInt16(tempStream, attributes);
-        PrimitiveTypes.encodeInt32(tempStream, lastOffsetDelta);
-        PrimitiveTypes.encodeInt64(tempStream, baseTimestamp);
-        PrimitiveTypes.encodeInt64(tempStream, maxTimestamp);
-        PrimitiveTypes.encodeInt64(tempStream, producerId);
-        PrimitiveTypes.encodeInt16(tempStream, producerEpoch);
-        PrimitiveTypes.encodeInt32(tempStream, baseSequence);
-        PrimitiveTypes.encodeArray(tempStream, records, (stream, record) -> record.encode(stream));
+        PrimitiveTypes.encodeInt16(bufferOutput, attributes);
+        PrimitiveTypes.encodeInt32(bufferOutput, lastOffsetDelta);
+        PrimitiveTypes.encodeInt64(bufferOutput, baseTimestamp);
+        PrimitiveTypes.encodeInt64(bufferOutput, maxTimestamp);
+        PrimitiveTypes.encodeInt64(bufferOutput, producerId);
+        PrimitiveTypes.encodeInt16(bufferOutput, producerEpoch);
+        PrimitiveTypes.encodeInt32(bufferOutput, baseSequence);
+        PrimitiveTypes.encodeArray(bufferOutput, records,(stream, record) -> record.encode(stream));
 
-        // Update batch length
-        int batchLength = tempStream.size() - 12; // 12 bytes: BaseOffset (8) + BatchLength (4)
-        PrimitiveTypes.encodeInt32At(buffer.toByteArray(), 8, batchLength);
+        // Calculate CRC
+        byte[] buffer = bufferStream.toByteArray();
+        CRC32C crc32c = new CRC32C();
+        crc32c.update(buffer, crcStartOffset + 4, buffer.length - crcStartOffset - 4);
+        long computedCrc = crc32c.getValue();
 
-        // Recalculate CRC for fields after BaseOffset, BatchLength, and PartitionLeaderEpoch
-        CRC32 crc32 = new CRC32();
-        crc32.update(buffer.toByteArray(), crcEndOffset, tempStream.size() - crcEndOffset);
-        this.crc = crc32.getValue(); // Update internal CRC field
-        PrimitiveTypes.encodeUInt32At(buffer.toByteArray(), crcStartOffset, (int) this.crc);
+        // Write CRC back
+        encodeUInt32At(buffer, crcStartOffset, computedCrc);
 
-        // Write final buffer to the output stream
-        outputStream.write(buffer.toByteArray());
+        // Write batchLength
+        int batchLength = buffer.length - 12; // Exclude baseOffset (8 bytes) and batchLength (4 bytes)
+        encodeUInt32At(buffer, 8, batchLength);
+
+        // Write final buffer to the outputStream
+        outputStream.write(buffer);
     }
+
+    public static void encodeUInt32At(byte[] buffer, int offset, long value) {
+        // Validate range for unsigned 32-bit integer
+        if (value < 0 || value > 0xFFFFFFFFL) {
+            throw new IllegalArgumentException("Value out of range for unsigned 32-bit integer: " + value);
+        }
+
+        // Write the value as 4 bytes
+        buffer[offset] = (byte) ((value >>> 24) & 0xFF);
+        buffer[offset + 1] = (byte) ((value >>> 16) & 0xFF);
+        buffer[offset + 2] = (byte) ((value >>> 8) & 0xFF);
+        buffer[offset + 3] = (byte) (value & 0xFF);
+    }
+
+
 
     @Override
     public String toString() {
