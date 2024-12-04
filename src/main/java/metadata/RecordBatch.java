@@ -22,6 +22,63 @@ public class RecordBatch {
     private final long producerId;
     private final short producerEpoch;
     private final int baseSequence;
+
+    public long getBaseOffset() {
+        return baseOffset;
+    }
+
+    public int getBatchLength() {
+        return batchLength;
+    }
+
+    public int getPartitionLeaderEpoch() {
+        return partitionLeaderEpoch;
+    }
+
+    public byte getMagic() {
+        return magic;
+    }
+
+    public long getCrc() {
+        return crc;
+    }
+
+    public void setCrc(long crc) {
+        this.crc = crc;
+    }
+
+    public short getAttributes() {
+        return attributes;
+    }
+
+    public int getLastOffsetDelta() {
+        return lastOffsetDelta;
+    }
+
+    public long getBaseTimestamp() {
+        return baseTimestamp;
+    }
+
+    public long getMaxTimestamp() {
+        return maxTimestamp;
+    }
+
+    public long getProducerId() {
+        return producerId;
+    }
+
+    public short getProducerEpoch() {
+        return producerEpoch;
+    }
+
+    public int getBaseSequence() {
+        return baseSequence;
+    }
+
+    public List<Record> getRecords() {
+        return records;
+    }
+
     private final List<Record> records;
 
     // Constructor
