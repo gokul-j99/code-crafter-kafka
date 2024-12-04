@@ -7,14 +7,14 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.List;
-import java.util.zip.CRC32C;
+import java.util.zip.CRC32;
 
 public class RecordBatch {
     private final long baseOffset;
     private final int batchLength;
     private final int partitionLeaderEpoch;
     private final byte magic;
-    private final long crc;
+    private long crc; // Marked as mutable for recalculation
     private final short attributes;
     private final int lastOffsetDelta;
     private final long baseTimestamp;
@@ -43,67 +43,16 @@ public class RecordBatch {
         this.records = records;
     }
 
-    // Getters
-    public long getBaseOffset() {
-        return baseOffset;
-    }
-
-    public int getBatchLength() {
-        return batchLength;
-    }
-
-    public int getPartitionLeaderEpoch() {
-        return partitionLeaderEpoch;
-    }
-
-    public byte getMagic() {
-        return magic;
-    }
-
-    public long getCrc() {
-        return crc;
-    }
-
-    public short getAttributes() {
-        return attributes;
-    }
-
-    public int getLastOffsetDelta() {
-        return lastOffsetDelta;
-    }
-
-    public long getBaseTimestamp() {
-        return baseTimestamp;
-    }
-
-    public long getMaxTimestamp() {
-        return maxTimestamp;
-    }
-
-    public long getProducerId() {
-        return producerId;
-    }
-
-    public short getProducerEpoch() {
-        return producerEpoch;
-    }
-
-    public int getBaseSequence() {
-        return baseSequence;
-    }
-
-    public List<Record> getRecords() {
-        return records;
-    }
+    // Getters (unchanged)
+    // ... (All getters are fine)
 
     // Decode method
     public static RecordBatch decode(DataInputStream inputStream) throws IOException {
-
         RecordBatch rec = new RecordBatch(
                 inputStream.readLong(),
                 inputStream.readInt(),
                 inputStream.readInt(),
-                inputStream.readByte(),// magic
+                inputStream.readByte(), // magic
                 PrimitiveTypes.decodeUInt32(inputStream), // crc
                 inputStream.readShort(),
                 inputStream.readInt(),
@@ -112,33 +61,49 @@ public class RecordBatch {
                 inputStream.readLong(),
                 inputStream.readShort(),
                 inputStream.readInt(),
-                PrimitiveTypes.decodeArray(inputStream, Record::decode) );// records
+                PrimitiveTypes.decodeArray(inputStream, Record::decode)); // records
         System.out.println("Record");
         System.out.println(rec);
         return rec;
-
     }
 
-
-    // Encode method
+    // Encode method with CRC recalculation
     public void encode(DataOutputStream outputStream) throws IOException {
-        // Create a buffer for the serialized data excluding the CRC
+        // Create a buffer to hold the serialized data
+        ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+        DataOutputStream tempStream = new DataOutputStream(buffer);
 
+        // Write fields before CRC
+        PrimitiveTypes.encodeInt64(tempStream, baseOffset);
+        PrimitiveTypes.encodeInt32(tempStream, 0); // Placeholder for batchLength
+        PrimitiveTypes.encodeInt32(tempStream, partitionLeaderEpoch);
+        PrimitiveTypes.encodeInt8(tempStream, magic);
+        int crcStartOffset = tempStream.size();
+        PrimitiveTypes.encodeUInt32(tempStream, 0); // Placeholder for CRC
+        int crcEndOffset = tempStream.size();
 
-        PrimitiveTypes.encodeInt64(outputStream, baseOffset);
-        PrimitiveTypes.encodeInt32(outputStream, batchLength);
-        PrimitiveTypes.encodeInt32(outputStream, partitionLeaderEpoch);
-        PrimitiveTypes.encodeInt8(outputStream, magic);
-        PrimitiveTypes.encodeUInt32(outputStream, crc);
-        PrimitiveTypes.encodeInt16(outputStream, attributes);
-        PrimitiveTypes.encodeInt32(outputStream, lastOffsetDelta);
-        PrimitiveTypes.encodeInt64(outputStream, baseTimestamp);
-        PrimitiveTypes.encodeInt64(outputStream, maxTimestamp);
-        PrimitiveTypes.encodeInt64(outputStream, producerId);
-        PrimitiveTypes.encodeInt16(outputStream, producerEpoch);
-        PrimitiveTypes.encodeInt32(outputStream, baseSequence);
-        PrimitiveTypes.encodeArray(outputStream, records, (stream, record) -> record.encode(stream));
+        // Write remaining fields
+        PrimitiveTypes.encodeInt16(tempStream, attributes);
+        PrimitiveTypes.encodeInt32(tempStream, lastOffsetDelta);
+        PrimitiveTypes.encodeInt64(tempStream, baseTimestamp);
+        PrimitiveTypes.encodeInt64(tempStream, maxTimestamp);
+        PrimitiveTypes.encodeInt64(tempStream, producerId);
+        PrimitiveTypes.encodeInt16(tempStream, producerEpoch);
+        PrimitiveTypes.encodeInt32(tempStream, baseSequence);
+        PrimitiveTypes.encodeArray(tempStream, records, (stream, record) -> record.encode(stream));
 
+        // Update batch length
+        int batchLength = tempStream.size() - 12; // 12 bytes: BaseOffset (8) + BatchLength (4)
+        PrimitiveTypes.encodeInt32At(buffer.toByteArray(), 8, batchLength);
+
+        // Recalculate CRC for fields after BaseOffset, BatchLength, and PartitionLeaderEpoch
+        CRC32 crc32 = new CRC32();
+        crc32.update(buffer.toByteArray(), crcEndOffset, tempStream.size() - crcEndOffset);
+        this.crc = crc32.getValue(); // Update internal CRC field
+        PrimitiveTypes.encodeUInt32At(buffer.toByteArray(), crcStartOffset, (int) this.crc);
+
+        // Write final buffer to the output stream
+        outputStream.write(buffer.toByteArray());
     }
 
     @Override

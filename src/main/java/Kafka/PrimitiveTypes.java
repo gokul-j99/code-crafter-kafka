@@ -311,6 +311,25 @@ public class PrimitiveTypes {
         }
     }
 
+    public static void encodeInt32At(byte[] buffer, int offset, int value) {
+        buffer[offset] = (byte) ((value >>> 24) & 0xFF); // Most significant byte
+        buffer[offset + 1] = (byte) ((value >>> 16) & 0xFF);
+        buffer[offset + 2] = (byte) ((value >>> 8) & 0xFF);
+        buffer[offset + 3] = (byte) (value & 0xFF); // Least significant byte
+    }
+
+    public static void encodeUInt32At(byte[] buffer, int offset, long value) {
+        if (value < 0 || value > 0xFFFFFFFFL) {
+            throw new IllegalArgumentException("Value out of range for unsigned 32-bit integer: " + value);
+        }
+        buffer[offset] = (byte) ((value >>> 24) & 0xFF); // Most significant byte
+        buffer[offset + 1] = (byte) ((value >>> 16) & 0xFF);
+        buffer[offset + 2] = (byte) ((value >>> 8) & 0xFF);
+        buffer[offset + 3] = (byte) (value & 0xFF); // Least significant byte
+    }
+
+
+
     // Functional Interfaces
     @FunctionalInterface
     public interface DecoderFunction<T> {
